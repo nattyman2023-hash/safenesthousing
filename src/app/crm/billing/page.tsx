@@ -1,0 +1,29 @@
+import { db } from '@/lib/db';
+import { getCurrentUser, hasPermission } from '@/lib/auth';
+import { invoiceRemaining } from '@/lib/domain';
+import { formatDate, formatMoneyMinor } from '@/lib/format';
+import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
+import { HousingBenefitForm } from '@/components/HousingBenefitForm';
+import { InvoiceForm } from '@/components/InvoiceForm';
+import { InvoicePaymentForm } from '@/components/InvoicePaymentForm';
+import { InvoiceStatusControl } from '@/components/InvoiceStatusControl';
+
+export default async function BillingPage() {
+  const user = await getCurrentUser();
+  const canRead = await hasPermission(user, 'finance.read');
+  if (!user || !canRead) return <div className="crm-page"><CrmPageHeader eyebrow="Finance" title="Billing & Housing Benefit" intro="Financial records are limited to authorised finance roles." /><EmptyState title="Finance access required" message="Ask an organisation administrator to grant finance.read access to this area." /></div>;
+
+  const [claims, clients, invoices] = await Promise.all([
+    db.housingBenefitClaim.findMany({ where: { client: { organisationId: user.organisationId } }, include: { client: { select: { id: true, reference: true, displayName: true } } }, orderBy: { id: 'desc' } }).catch(() => []),
+    db.client.findMany({ where: { organisationId: user.organisationId }, select: { id: true, reference: true, displayName: true }, orderBy: { displayName: 'asc' } }).catch(() => []),
+    db.invoice.findMany({ where: { organisationId: user.organisationId }, include: { items: true, payments: true }, orderBy: { reference: 'asc' } }).catch(() => [])
+  ]);
+  const canWrite = await hasPermission(user, 'finance.write');
+  const inPayment = claims.filter((claim) => claim.status === 'IN_PAYMENT').length;
+  const evidenceNeeded = claims.filter((claim) => claim.status === 'EVIDENCE_REQUIRED').length;
+  const paymentExceptions = claims.filter((claim) => ['SUSPENDED', 'PAUSED', 'FAILED'].includes(claim.status) || ['PAUSED', 'FAILED'].includes(claim.paymentStatus)).length;
+  const outstandingMinor = invoices.filter((invoice) => !['PAID', 'VOID'].includes(invoice.status)).reduce((total, invoice) => total + invoiceRemaining(invoice.totalMinor, invoice.payments), 0);
+  const claimOptions = claims.map((claim) => ({ id: claim.id, clientId: claim.clientId, status: claim.status, paymentStatus: claim.paymentStatus, submittedAt: claim.submittedAt?.toISOString() ?? null, evidenceRequired: claim.evidenceRequired, weeklyRentMinor: claim.weeklyRentMinor, serviceChargeMinor: claim.serviceChargeMinor }));
+
+  return <div className="crm-page"><CrmPageHeader eyebrow="Finance" title="Billing & Housing Benefit" intro="Funding, claims, invoices, payments, and arrears — separate from support notes." action={canWrite ? 'New invoice' : undefined} actionHref={canWrite ? '#new' : undefined} /><div className="metric-grid"><MetricCard label="In payment" value={inPayment} detail="Housing Benefit claims" tone="teal" /><MetricCard label="Evidence needed" value={evidenceNeeded} detail="Claims needing action" tone="gold" /><MetricCard label="Payment exceptions" value={paymentExceptions} detail="Suspended or failed claims" tone="red" /><MetricCard label="Outstanding invoices" value={formatMoneyMinor(outstandingMinor)} detail={`${invoices.length} invoices in this organisation`} tone="blue" /></div>{canWrite && <div className="crm-panels" style={{ marginBottom: 18 }}><HousingBenefitForm clients={clients} claims={claimOptions} /><InvoiceForm /></div>}<FilterBar placeholder="Search client, claim, or invoice"><select className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Housing Benefit status"><option value="ALL">All statuses</option><option value="IN_PAYMENT">In payment</option><option value="EVIDENCE_REQUIRED">Evidence required</option><option value="PENDING">Pending</option></select></FilterBar><TableCard title="Housing Benefit claims" count={`${claims.length} claims`}><table className="crm-table"><thead><tr><th>Client ref</th><th>Client</th><th>Weekly rent</th><th>Service charge</th><th>Status</th><th>Exception</th><th>Submitted</th></tr></thead><tbody>{claims.length ? claims.map((claim) => <tr key={claim.id}><td><strong>{claim.client.reference}</strong></td><td>{claim.client.displayName}</td><td>{formatMoneyMinor(claim.weeklyRentMinor)}</td><td>{formatMoneyMinor(claim.serviceChargeMinor)}</td><td><StatusBadge status={claim.status} /></td><td>{claim.evidenceRequired || (claim.paymentStatus === 'FAILED' ? 'Payment failed' : 'None')}</td><td>{formatDate(claim.submittedAt)}</td></tr>) : <tr><td colSpan={7}>No Housing Benefit claims recorded.</td></tr>}</tbody></table></TableCard><div style={{ marginTop: 18 }}><TableCard title="Invoices and payments" count={`${invoices.length} invoices`}><table className="crm-table"><thead><tr><th>Reference</th><th>Items</th><th>Total</th><th>Outstanding</th><th>Due</th><th>Status</th><th>Record payment</th><th>Download</th></tr></thead><tbody>{invoices.length ? invoices.map((invoice) => { const remaining = invoiceRemaining(invoice.totalMinor, invoice.payments); return <tr key={invoice.id}><td><strong>{invoice.reference}</strong></td><td>{invoice.items.map((item) => `${item.quantity} × ${item.description}`).join(', ')}</td><td>{formatMoneyMinor(invoice.totalMinor)}</td><td>{formatMoneyMinor(remaining)}</td><td>{formatDate(invoice.dueAt)}</td><td>{canWrite ? <InvoiceStatusControl invoiceId={invoice.id} status={invoice.status} /> : <StatusBadge status={invoice.status} />}</td><td>{canWrite ? <InvoicePaymentForm invoiceId={invoice.id} remainingMinor={remaining} /> : '—'}</td><td><a href={`/api/crm/invoices/${invoice.id}/pdf`}>PDF</a></td></tr>; }) : <tr><td colSpan={8}>No invoices recorded.</td></tr>}</tbody></table></TableCard></div></div>;
+}

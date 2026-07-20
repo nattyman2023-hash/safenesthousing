@@ -1,0 +1,794 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organisation {
+  id                  String                   @id @default(cuid())
+  name                String
+  slug                String                   @unique
+  timezone            String                   @default("Europe/London")
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  memberships         Membership[]
+  users               User[]
+  roles               Role[]
+  services            Service[]
+  properties          Property[]
+  settings            SiteSetting[]
+  newsPosts           NewsPost[]
+  categories          NewsCategory[]
+  referrals           Referral[]
+  clients             Client[]
+  incidents           Incident[]
+  tasks               Task[]
+  documents           Document[]
+  audits              AuditLog[]
+  contactSubmissions  ContactSubmission[]
+  retentionRules      DataRetentionRule[]
+  subjectRequests     DataSubjectRequest[]
+  retentionReviewRuns DataRetentionReviewRun[]
+}
+
+model User {
+  id                String               @id @default(cuid())
+  organisationId    String
+  organisation      Organisation         @relation(fields: [organisationId], references: [id])
+  email             String               @unique
+  name              String
+  passwordHash      String
+  jobTitle          String?
+  active            Boolean              @default(true)
+  mfaRequired       Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  memberships       Membership[]
+  sessions          UserSession[]
+  resetTokens       PasswordResetToken[]
+  mfaMethods        MfaMethod[]
+  mfaRecoveryCodes  MfaRecoveryCode[]
+  loginAttempts     LoginAttempt[]
+  auditLogs         AuditLog[]
+  assignedReferrals ReferralAssignment[] @relation("AssignedReferralUser")
+  assignedIncidents Incident[]           @relation("IncidentLead")
+  assignedTasks     Task[]               @relation("TaskAssignee")
+}
+
+model Role {
+  id             String           @id @default(cuid())
+  organisationId String
+  organisation   Organisation     @relation(fields: [organisationId], references: [id])
+  name           String
+  slug           String
+  description    String?
+  memberships    Membership[]
+  permissions    RolePermission[]
+
+  @@unique([organisationId, slug])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  organisationId String
+  userId         String
+  roleId         String
+  serviceIds     String       @default("[]")
+  propertyIds    String       @default("[]")
+  active         Boolean      @default(true)
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([organisationId, userId, roleId])
+  @@index([userId])
+}
+
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  mfaVerifiedAt DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  ipAddress     String?
+  userAgent     String?
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model MfaMethod {
+  id                    String    @id @default(cuid())
+  userId                String
+  type                  String
+  secretCipher          String
+  verifiedAt            DateTime?
+  recoveryCodesIssuedAt DateTime?
+  createdAt             DateTime  @default(now())
+  user                  User      @relation(fields: [userId], references: [id])
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, usedAt])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  success   Boolean
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([email, createdAt])
+}
+
+model SiteSetting {
+  id             String       @id @default(cuid())
+  organisationId String
+  key            String
+  value          String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, key])
+}
+
+model Service {
+  id             String       @id @default(cuid())
+  organisationId String
+  title          String
+  slug           String
+  summary        String
+  content        String
+  audience       String
+  referralRoutes String
+  eligibility    String
+  supportModel   String
+  imageUrl       String?
+  displayOrder   Int          @default(0)
+  published      Boolean      @default(true)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  properties     Property[]
+  referrals      Referral[]
+  clients        Client[]
+
+  @@unique([organisationId, slug])
+  @@index([published, displayOrder])
+}
+
+model Property {
+  id                 String            @id @default(cuid())
+  organisationId     String
+  serviceId          String?
+  publicName         String
+  slug               String
+  neighbourhood      String
+  serviceType        String
+  publicSummary      String
+  facilities         String            @default("[]")
+  eligibility        String
+  capacity           Int
+  publicVacancyState String
+  accessibility      String?
+  confidential       Boolean           @default(false)
+  secureAddress      String?
+  published          Boolean           @default(true)
+  displayOrder       Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  organisation       Organisation      @relation(fields: [organisationId], references: [id])
+  service            Service?          @relation(fields: [serviceId], references: [id])
+  images             PropertyImage[]
+  rooms              Room[]
+  placements         Placement[]
+  occupancyRecords   OccupancyRecord[]
+  tasks              Task[]
+  rotaShifts         RotaShift[]
+
+  @@unique([organisationId, slug])
+  @@index([published, publicVacancyState, serviceType])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  storageKey String
+  altText    String
+  sortOrder  Int      @default(0)
+  property   Property @relation(fields: [propertyId], references: [id])
+}
+
+model Room {
+  id               String            @id @default(cuid())
+  propertyId       String
+  label            String
+  status           String
+  notes            String?
+  property         Property          @relation(fields: [propertyId], references: [id])
+  occupancyRecords OccupancyRecord[]
+
+  @@unique([propertyId, label])
+  @@index([status])
+}
+
+model NewsCategory {
+  id             String       @id @default(cuid())
+  organisationId String
+  name           String
+  slug           String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  posts          NewsPost[]
+
+  @@unique([organisationId, slug])
+}
+
+model NewsPost {
+  id             String       @id @default(cuid())
+  organisationId String
+  categoryId     String
+  title          String
+  slug           String
+  summary        String
+  content        String
+  authorName     String
+  featuredImage  String?
+  publishedAt    DateTime?
+  published      Boolean      @default(false)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  category       NewsCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([organisationId, slug])
+  @@index([published, publishedAt])
+}
+
+model TeamMember {
+  id             String  @id @default(cuid())
+  organisationId String
+  name           String
+  role           String
+  bio            String
+  imageUrl       String?
+  displayOrder   Int     @default(0)
+  published      Boolean @default(true)
+}
+
+model ContactSubmission {
+  id             String       @id @default(cuid())
+  organisationId String
+  name           String
+  email          String
+  phone          String?
+  category       String
+  message        String
+  consent        Boolean
+  status         String       @default("NEW")
+  retentionUntil DateTime?
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model Referral {
+  id                     String                  @id @default(cuid())
+  organisationId         String
+  serviceId              String
+  reference              String                  @unique
+  status                 String                  @default("NEW")
+  referrerName           String
+  referrerOrganisation   String?
+  referrerRole           String?
+  referrerEmail          String
+  referrerPhone          String?
+  relationship           String?
+  personName             String
+  personIdentifier       String?
+  ageRange               String?
+  pronouns               String?
+  contactDetails         String?
+  currentLocation        String?
+  housingSituation       String
+  supportNeeds           String
+  knownRisks             String?
+  accessibilityNeeds     String?
+  fundingRoute           String?
+  consentGiven           Boolean
+  privacyAcknowledged    Boolean
+  anonymousDomesticAbuse Boolean                 @default(false)
+  honeypot               String?
+  followUpDate           DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  organisation           Organisation            @relation(fields: [organisationId], references: [id])
+  service                Service                 @relation(fields: [serviceId], references: [id])
+  statusHistory          ReferralStatusHistory[]
+  assignments            ReferralAssignment[]
+  notes                  ReferralNote[]
+  risks                  ReferralRisk[]
+  documents              ReferralDocument[]
+  client                 Client?
+
+  @@index([organisationId, status, createdAt])
+  @@index([serviceId, status])
+}
+
+model ReferralStatusHistory {
+  id         String   @id @default(cuid())
+  referralId String
+  previous   String?
+  next       String
+  reason     String?
+  changedBy  String?
+  createdAt  DateTime @default(now())
+  referral   Referral @relation(fields: [referralId], references: [id])
+
+  @@index([referralId, createdAt])
+}
+
+model ReferralAssignment {
+  id         String   @id @default(cuid())
+  referralId String
+  userId     String
+  assignedAt DateTime @default(now())
+  referral   Referral @relation(fields: [referralId], references: [id])
+  user       User     @relation("AssignedReferralUser", fields: [userId], references: [id])
+}
+
+model ReferralNote {
+  id         String   @id @default(cuid())
+  referralId String
+  authorId   String
+  note       String
+  restricted Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  referral   Referral @relation(fields: [referralId], references: [id])
+}
+
+model ReferralRisk {
+  id         String   @id @default(cuid())
+  referralId String
+  category   String
+  level      String
+  summary    String
+  restricted Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  referral   Referral @relation(fields: [referralId], references: [id])
+}
+
+model ReferralDocument {
+  id         String   @id @default(cuid())
+  referralId String
+  documentId String
+  referral   Referral @relation(fields: [referralId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id])
+}
+
+model Client {
+  id                 String                @id @default(cuid())
+  organisationId     String
+  serviceId          String?
+  referralId         String?               @unique
+  reference          String                @unique
+  displayName        String
+  dateOfBirth        DateTime?
+  keyWorkerId        String?
+  riskLevel          String                @default("Medium")
+  communicationNeeds String?
+  restricted         Boolean               @default(false)
+  status             String                @default("CURRENT")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  organisation       Organisation          @relation(fields: [organisationId], references: [id])
+  service            Service?              @relation(fields: [serviceId], references: [id])
+  referral           Referral?             @relation(fields: [referralId], references: [id])
+  placements         Placement[]
+  occupancyRecords   OccupancyRecord[]
+  supportPlans       SupportPlan[]
+  caseNotes          CaseNote[]
+  incidents          Incident[]
+  tasks              Task[]
+  housingBenefit     HousingBenefitClaim[]
+
+  @@index([organisationId, status])
+  @@index([displayName])
+}
+
+model Placement {
+  id               String            @id @default(cuid())
+  clientId         String
+  propertyId       String
+  roomId           String
+  status           String            @default("ACTIVE")
+  startDate        DateTime
+  endDate          DateTime?
+  tenancyRef       String?
+  client           Client            @relation(fields: [clientId], references: [id])
+  property         Property          @relation(fields: [propertyId], references: [id])
+  occupancyRecords OccupancyRecord[]
+
+  @@index([propertyId, roomId, status])
+}
+
+model OccupancyRecord {
+  id          String    @id @default(cuid())
+  propertyId  String
+  roomId      String
+  clientId    String
+  placementId String
+  startDate   DateTime
+  endDate     DateTime?
+  property    Property  @relation(fields: [propertyId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
+  client      Client    @relation(fields: [clientId], references: [id])
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  @@index([roomId, startDate, endDate])
+}
+
+model SupportPlan {
+  id         String              @id @default(cuid())
+  clientId   String
+  version    Int                 @default(1)
+  status     String              @default("ACTIVE")
+  reviewDate DateTime?
+  createdBy  String
+  createdAt  DateTime            @default(now())
+  client     Client              @relation(fields: [clientId], references: [id])
+  goals      SupportGoal[]
+  reviews    SupportPlanReview[]
+
+  @@index([clientId, status])
+}
+
+model SupportGoal {
+  id             String      @id @default(cuid())
+  supportPlanId  String
+  category       String
+  desiredOutcome String
+  actionSteps    String
+  owner          String?
+  targetDate     DateTime?
+  status         String      @default("NOT_STARTED")
+  supportPlan    SupportPlan @relation(fields: [supportPlanId], references: [id])
+}
+
+model SupportPlanReview {
+  id            String      @id @default(cuid())
+  supportPlanId String
+  reviewDate    DateTime
+  notes         String
+  reviewedBy    String
+  supportPlan   SupportPlan @relation(fields: [supportPlanId], references: [id])
+}
+
+model CaseNote {
+  id             String            @id @default(cuid())
+  clientId       String
+  authorId       String
+  contactType    String
+  category       String
+  note           String
+  outcome        String?
+  followUpAction String?
+  followUpDate   DateTime?
+  restricted     Boolean           @default(false)
+  finalised      Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  client         Client            @relation(fields: [clientId], references: [id])
+  versions       CaseNoteVersion[]
+
+  @@index([clientId, createdAt])
+}
+
+model CaseNoteVersion {
+  id         String   @id @default(cuid())
+  caseNoteId String
+  authorId   String
+  content    String
+  reason     String?
+  createdAt  DateTime @default(now())
+  caseNote   CaseNote @relation(fields: [caseNoteId], references: [id])
+}
+
+model Incident {
+  id              String           @id @default(cuid())
+  organisationId  String
+  clientId        String?
+  reference       String           @unique
+  category        String
+  severity        String
+  status          String           @default("OPEN")
+  incidentAt      DateTime
+  location        String?
+  description     String
+  immediateAction String?
+  assignedLeadId  String?
+  restricted      Boolean          @default(true)
+  closureDecision String?
+  reviewDate      DateTime?
+  createdAt       DateTime         @default(now())
+  organisation    Organisation     @relation(fields: [organisationId], references: [id])
+  client          Client?          @relation(fields: [clientId], references: [id])
+  assignedLead    User?            @relation("IncidentLead", fields: [assignedLeadId], references: [id])
+  updates         IncidentUpdate[]
+  actions         IncidentAction[]
+
+  @@index([organisationId, status, severity])
+}
+
+model IncidentUpdate {
+  id         String   @id @default(cuid())
+  incidentId String
+  authorId   String
+  update     String
+  createdAt  DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id])
+}
+
+model IncidentAction {
+  id          String    @id @default(cuid())
+  incidentId  String
+  action      String
+  owner       String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  incident    Incident  @relation(fields: [incidentId], references: [id])
+}
+
+model RestrictedAccessAssignment {
+  id           String    @id @default(cuid())
+  userId       String
+  resourceType String
+  resourceId   String
+  reason       String
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, resourceType, resourceId])
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  organisationId String
+  title          String
+  description    String?
+  priority       String       @default("MEDIUM")
+  dueAt          DateTime?
+  status         String       @default("OPEN")
+  assignedToId   String?
+  clientId       String?
+  propertyId     String?
+  referralId     String?
+  incidentId     String?
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  assignedTo     User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  property       Property?    @relation(fields: [propertyId], references: [id])
+  client         Client?      @relation(fields: [clientId], references: [id])
+
+  @@index([organisationId, status, dueAt])
+}
+
+model RotaShift {
+  id             String           @id @default(cuid())
+  organisationId String
+  propertyId     String?
+  serviceId      String?
+  shiftType      String
+  startsAt       DateTime
+  endsAt         DateTime
+  handover       String?
+  overrideReason String?
+  property       Property?        @relation(fields: [propertyId], references: [id])
+  assignments    RotaAssignment[]
+
+  @@index([startsAt, endsAt])
+}
+
+model RotaAssignment {
+  id      String    @id @default(cuid())
+  shiftId String
+  userId  String
+  shift   RotaShift @relation(fields: [shiftId], references: [id])
+
+  @@unique([shiftId, userId])
+}
+
+model FundingSource {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+model HousingBenefitClaim {
+  id                 String    @id @default(cuid())
+  clientId           String
+  status             String    @default("NOT_STARTED")
+  submittedAt        DateTime?
+  evidenceRequired   String?
+  weeklyRentMinor    Int       @default(0)
+  serviceChargeMinor Int       @default(0)
+  paymentStatus      String    @default("PENDING")
+  client             Client    @relation(fields: [clientId], references: [id])
+
+  @@index([status, paymentStatus])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organisationId String
+  reference      String        @unique
+  status         String        @default("DRAFT")
+  totalMinor     Int           @default(0)
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  items          InvoiceItem[]
+  payments       Payment[]
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitMinor   Int
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  amountMinor Int
+  paidAt      DateTime
+  method      String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+}
+
+model Document {
+  id                String             @id @default(cuid())
+  organisationId    String
+  displayName       String
+  storageKey        String             @unique
+  mimeType          String
+  sizeBytes         Int
+  sha256            String?
+  malwareScanStatus String             @default("SKIPPED")
+  malwareScannedAt  DateTime?
+  category          String
+  restricted        Boolean            @default(false)
+  expiresAt         DateTime?
+  reviewDate        DateTime?
+  uploadedBy        String
+  createdAt         DateTime           @default(now())
+  organisation      Organisation       @relation(fields: [organisationId], references: [id])
+  versions          DocumentVersion[]
+  referralLinks     ReferralDocument[]
+
+  @@index([organisationId, category, restricted])
+}
+
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  storageKey String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organisationId String
+  actorId        String?
+  action         String
+  resourceType   String
+  resourceId     String?
+  beforeJson     String?
+  afterJson      String?
+  success        Boolean      @default(true)
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  actor          User?        @relation(fields: [actorId], references: [id])
+
+  @@index([organisationId, resourceType, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model DataRetentionRule {
+  id             String       @id @default(cuid())
+  organisationId String
+  resourceType   String
+  retentionDays  Int
+  legalBasisNote String?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, resourceType])
+  @@index([organisationId, active])
+}
+
+model DataSubjectRequest {
+  id             String       @id @default(cuid())
+  organisationId String
+  requestType    String
+  subjectRef     String
+  status         String       @default("OPEN")
+  dueAt          DateTime?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  legalHold      Boolean      @default(false)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, status, dueAt])
+}
+
+model DataRetentionReviewRun {
+  id             String       @id @default(cuid())
+  organisationId String
+  triggeredBy    String?
+  mode           String       @default("DRY_RUN")
+  status         String       @default("COMPLETED")
+  startedAt      DateTime     @default(now())
+  completedAt    DateTime?
+  summaryJson    String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, startedAt])
+}

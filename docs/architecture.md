@@ -1,0 +1,13 @@
+# Architecture
+
+Safe Nest is a server-rendered Next.js App Router application with three separate route surfaces:
+
+- Public website: editorial content, safe property projections, referrals, contact, news, and policy pages.
+- Staff authentication: login, password reset entry point, secure session cookie, and noindex metadata.
+- CRM: a separate shell with operational navigation, server-side session checks, role-aware domain services, tables, metric cards, pipeline views, profiles, and governance screens.
+
+Prisma provides the relational data layer. The repository's current provider and generated migration target SQLite, which is suitable for a protected single-instance development or small VPS deployment with tested backups. A PostgreSQL production variant requires changing the provider and generating a PostgreSQL migration before release. API routes use Zod for input validation, bounded request throttling, provider-independent email delivery, and append-only audit writes. Rate limiting uses the local memory adapter for one instance or a token-authenticated HTTP adapter for shared deployments; the HTTP adapter sends only a hashed key and fails closed if unavailable. SMTP is required in production, and missing SMTP never falls back to logging. The health route checks both database connectivity and production configuration readiness and reports non-secret adapter status.
+
+Sensitive public boundaries are enforced in `src/lib/data.ts`: public property queries select only safe fields. Full addresses, room labels, resident names, operational notes, restricted content, and document keys are not part of public projections. Private document uploads are scanned before write, carry a SHA-256 integrity hash, and are read only after organisation/role checks. Documents can use a local private filesystem or S3-compatible object storage; object writes set a content type and server-side AES-256 encryption, and no public URLs are generated.
+
+Authentication uses random session tokens stored as SHA-256 hashes in `UserSession` and presented only in an httpOnly, same-site cookie. Passwords use bcrypt. Accounts marked `mfaRequired`, and all privileged-role accounts, receive a pending session until a TOTP or one-time recovery-code challenge succeeds; the session stores only `mfaVerifiedAt`, never the code or secret. TOTP secrets are encrypted with an `AUTH_SECRET`-derived AES-GCM key, while recovery codes are generated once, hashed, and consumed transactionally. Every protected CRM route resolves the current session server-side; client-side navigation is not the security boundary.
