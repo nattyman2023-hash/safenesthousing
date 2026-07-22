@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { createSession, mfaBypassEnabledForDev, roleRequiresMfa, verifyPassword } from '@/lib/auth';
+import { createSession, mfaBypassEnabled, roleRequiresMfa, verifyPassword } from '@/lib/auth';
 import { audit } from '@/lib/audit';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!valid) { if (user) { await db.loginAttempt.create({ data: { userId: user.id, email, success: false, ipAddress: ip } }); await audit({ organisationId: user.organisationId, actorId: user.id, action: 'LOGIN_FAILED', resourceType: 'User', resourceId: user.id, success: false, ipAddress: ip }); } return NextResponse.json({ error: 'Email or password not recognised.' }, { status: 401 }); }
   await db.loginAttempt.create({ data: { userId: user.id, email, success: true, ipAddress: ip } });
   const privilegedRole = user.memberships.some((membership) => roleRequiresMfa(membership.role.slug));
-  const bypass = mfaBypassEnabledForDev();
+  const bypass = mfaBypassEnabled();
   const mfaRequired = !bypass && (user.mfaRequired || privilegedRole);
   if (privilegedRole && !user.mfaRequired) {
     await db.user.update({ where: { id: user.id }, data: { mfaRequired: true } });

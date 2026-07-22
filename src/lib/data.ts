@@ -33,8 +33,8 @@ export const fallbackSiteSettings: Record<string, string> = {
   'homepage.stats.moveOn': '94%',
   'homepage.stats.newRooms': '12',
   'homepage.stats.responseTarget': '7 days',
-  'contact.generalEmail': 'hello@safenest.example',
-  'contact.referralEmail': 'referrals@safenest.example',
+  'contact.generalEmail': 'hello@safenesthousing.org.uk',
+  'contact.referralEmail': 'hello@safenesthousing.org.uk',
   'contact.emergencyMessage': 'In immediate danger, call 999. For confidential support, call 0800 000 0000.'
 };
 

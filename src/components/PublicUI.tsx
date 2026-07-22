@@ -1,5 +1,50 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Icon } from './Icons';
+
+type PropertyVisual = { src: string; alt: string };
+
+const defaultPropertyVisual: PropertyVisual = {
+  src: '/images/new-community-garden.jpg',
+  alt: 'A welcoming neighbourhood garden surrounded by brick homes'
+};
+
+export function getPropertyVisual(serviceType?: string): PropertyVisual {
+  const type = serviceType?.toLowerCase() ?? '';
+  if (type.includes('domestic abuse')) return { src: '/images/new-family-rest.jpg', alt: 'A parent resting with a baby in a calm home setting' };
+  if (type.includes('young people') || type.includes('care leaver')) return { src: '/images/new-young-person-room.jpg', alt: 'A young person settling into a warm, private room' };
+  if (type.includes('mental health')) return { src: '/images/new-listening-support.jpg', alt: 'A person taking part in a calm support conversation' };
+  if (type.includes('homelessness')) return { src: '/images/new-community-support.jpg', alt: 'Two people talking together in a leafy neighbourhood' };
+  if (type.includes('refugee')) return { src: '/images/new-kitchen-support.jpg', alt: 'Two people talking together in a welcoming kitchen' };
+  return defaultPropertyVisual;
+}
+
+export function getServiceVisual(slug?: string): PropertyVisual {
+  const type = slug?.toLowerCase() ?? '';
+  if (type.includes('supported-accommodation')) return { src: '/images/new-kitchen-support.jpg', alt: 'Two people talking together in a welcoming kitchen' };
+  if (type.includes('domestic-abuse')) return { src: '/images/new-family-rest.jpg', alt: 'A parent resting with a baby in a calm home setting' };
+  if (type.includes('mental-health')) return { src: '/images/new-listening-support.jpg', alt: 'A person taking part in a calm support conversation' };
+  if (type.includes('care-leaver') || type.includes('young')) return { src: '/images/new-young-person-room.jpg', alt: 'A young person settling into a warm, private room' };
+  if (type.includes('refugee')) return { src: '/images/new-community-garden.jpg', alt: 'A welcoming neighbourhood garden surrounded by brick homes' };
+  if (type.includes('homelessness')) return { src: '/images/new-community-support.jpg', alt: 'Two people talking together in a leafy neighbourhood' };
+  return { src: '/images/new-community-support.jpg', alt: 'Two people talking together in a leafy neighbourhood' };
+}
+
+export function PublicPageHero({ eyebrow, title, intro, image, imagePosition = 'center 38%' }: { eyebrow: string; title: string; intro: string; image: PropertyVisual; imagePosition?: string }) {
+  return <section className="page-hero page-hero-underlay">
+    <Image className="page-hero-image" src={image.src} alt={image.alt} fill sizes="100vw" style={{ objectPosition: imagePosition }} />
+    <div className="page-hero-overlay" aria-hidden="true" />
+    <div className="container page-hero-content"><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{intro}</p></div>
+  </section>;
+}
+
+export function PropertyPhoto({ serviceType, detail = false }: { serviceType?: string; detail?: boolean }) {
+  const visual = getPropertyVisual(serviceType);
+  return <div className={`property-photo ${detail ? 'property-photo-detail' : ''}`}>
+    <Image src={visual.src} alt={visual.alt} fill sizes={detail ? '(max-width: 1000px) 100vw, 55vw' : '(max-width: 740px) 100vw, (max-width: 1000px) 50vw, 33vw'} />
+    <span className="property-photo-label" aria-hidden="true">Neighbourhood-level image</span>
+  </div>;
+}
 
 export function SectionHeading({ eyebrow, title, intro, align = 'left' }: { eyebrow?: string; title: string; intro?: string; align?: 'left' | 'center' }) {
   return <div className={`section-heading align-${align}`}>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2>{intro && <p className="section-intro">{intro}</p>}</div>;
@@ -10,12 +55,13 @@ export function ButtonLink({ href, children, secondary = false, small = false }:
 }
 
 export function ServiceCard({ service }: { service: { slug: string; title: string; summary: string; audience?: string } }) {
-  return <Link className="service-card" href={`/services/${service.slug}`}><span className="service-number">0{service.title.length % 6 + 1}</span><h3>{service.title}</h3><p>{service.summary}</p><span className="text-link">Explore service <Icon name="arrow" size={15} /></span></Link>;
+  const visual = getServiceVisual(service.slug);
+  return <Link className="service-card service-card-image" href={`/services/${service.slug}`}><Image className="service-card-image-photo" src={visual.src} alt="" fill sizes="(max-width: 740px) 100vw, (max-width: 1000px) 50vw, 33vw" /><span className="service-card-image-overlay" aria-hidden="true" /><span className="service-card-image-content"><span className="service-number">0{service.title.length % 6 + 1}</span><h3>{service.title}</h3><p>{service.summary}</p><span className="text-link">Explore service <Icon name="arrow" size={15} /></span></span></Link>;
 }
 
 export function PropertyCard({ property }: { property: { slug: string; publicName: string; neighbourhood: string; serviceType: string; publicSummary: string; publicVacancyState: string; facilities?: string[] } }) {
   const vacancy = !property.publicVacancyState.toLowerCase().includes('full');
-  return <article className="property-card"><div className="property-photo"><span>Safe Nest home</span></div><div className="property-card-content"><div className="tag-row"><span className={`status-tag ${vacancy ? 'status-available' : 'status-neutral'}`}>{property.publicVacancyState}</span><span className="tag-outline">{property.serviceType}</span></div><h3>{property.publicName} <span>· {property.neighbourhood}</span></h3><p>{property.publicSummary}</p><ButtonLink href={`/properties/${property.slug}`} secondary small>{vacancy ? 'Enquire' : 'Join waitlist'} <Icon name="arrow" size={14} /></ButtonLink></div></article>;
+  return <article className="property-card"><PropertyPhoto serviceType={property.serviceType} /><div className="property-card-content"><div className="tag-row"><span className={`status-tag ${vacancy ? 'status-available' : 'status-neutral'}`}>{property.publicVacancyState}</span><span className="tag-outline">{property.serviceType}</span></div><h3>{property.publicName} <span>· {property.neighbourhood}</span></h3><p>{property.publicSummary}</p><ButtonLink href={`/properties/${property.slug}`} secondary small>{vacancy ? 'Enquire' : 'Join waitlist'} <Icon name="arrow" size={14} /></ButtonLink></div></article>;
 }
 
 export function StatsBand({ settings }: { settings?: Record<string, string> }) {

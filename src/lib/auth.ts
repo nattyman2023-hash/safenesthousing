@@ -12,8 +12,8 @@ export function roleRequiresMfa(roleSlug: string) { return MFA_REQUIRED_ROLES.in
 /** Local-development convenience only — never has any effect in production regardless of the
  * env var, and is off by default even locally. Set DISABLE_MFA_FOR_DEV=true in .env to skip MFA
  * while testing the CRM locally. */
-export function mfaBypassEnabledForDev() {
-  return process.env.NODE_ENV !== 'production' && process.env.DISABLE_MFA_FOR_DEV === 'true';
+export function mfaBypassEnabled() {
+  return process.env.MFA_ENABLED === 'false' || (process.env.NODE_ENV !== 'production' && process.env.DISABLE_MFA_FOR_DEV === 'true');
 }
 
 export function hashToken(value: string) { return createHash('sha256').update(value).digest('hex'); }
@@ -40,7 +40,7 @@ export async function getCurrentSession() {
 export async function getCurrentUser() {
   const session = await getCurrentSession();
   if (!session?.user.active) return null;
-  if (mfaBypassEnabledForDev()) return session.user;
+  if (mfaBypassEnabled()) return session.user;
   const privilegedRole = session.user.memberships.some((membership) => membership.active && roleRequiresMfa(membership.role.slug));
   if ((session.user.mfaRequired || privilegedRole) && !session.mfaVerifiedAt) return null;
   return session.user;

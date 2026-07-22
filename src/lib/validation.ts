@@ -19,7 +19,6 @@ export const referralSchema = z.object({
   relationship: z.string().trim().max(120).optional(),
   personName: z.string().trim().min(2, 'Enter a name or permitted anonymous identifier.').max(160),
   ageRange: z.string().trim().max(40).optional(),
-  pronouns: z.string().trim().max(80).optional(),
   contactDetails: z.string().trim().max(500).optional(),
   currentLocation: z.string().trim().min(2, 'Tell us where the person is currently staying.').max(500),
   serviceId: z.string().trim().min(1, 'Choose a service.'),
