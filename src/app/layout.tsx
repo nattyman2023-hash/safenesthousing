@@ -44,6 +44,7 @@ const organizationSchema = {
   url: siteUrl,
   email: 'hello@safenesthousing.org.uk',
   description: 'A housing and support organisation providing welcoming homes and practical support for people moving towards safety, stability, and independence.',
+  logo: `${siteUrl}/images/safe-nest-logo.png`,
   image: `${siteUrl}${featuredImage}`
 };
 

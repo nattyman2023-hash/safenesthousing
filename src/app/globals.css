@@ -50,6 +50,9 @@ h3 { font-size: 1.35rem; }
 .wordmark { display: inline-flex; flex-direction: column; color: var(--navy-900); line-height: 1; }
 .wordmark span { font-size: 1.55rem; letter-spacing: -.04em; }
 .wordmark small { margin-top: 7px; color: var(--teal-700); font-family: Arial, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .19em; text-transform: uppercase; }
+.brand-logo-link { display: inline-flex; align-items: center; justify-content: center; width: 154px; height: 70px; overflow: hidden; border-radius: 6px; background: #fff; }
+.brand-logo { display: block; width: 100%; height: 100%; object-fit: contain; }
+.brand-logo-header { width: 154px; height: 70px; }
 .site-nav { display: flex; align-items: center; gap: 28px; font-size: 14px; }
 .site-nav > a:not(.button) { color: var(--navy-800); }
 .site-nav > a:not(.button):hover { color: var(--teal-600); }
@@ -147,6 +150,7 @@ h3 { font-size: 1.35rem; }
 .footer-grid { display: grid; grid-template-columns: 1.4fr .8fr .9fr 1.2fr; gap: 42px; padding-bottom: 58px; }
 .wordmark-footer { color: #fff; }
 .wordmark-footer small { color: var(--teal-300); }
+.brand-logo-footer { width: 100%; height: 100%; padding: 4px; border: 1px solid rgba(157,211,217,.25); border-radius: 7px; background: #fff; }
 .footer-copy { max-width: 210px; margin-top: 24px; font-size: 14px; }
 .footer-label { color: var(--teal-300); }
 .footer-links { display: grid; gap: 8px; font-size: 13px; }
@@ -337,6 +341,7 @@ h3 { font-size: 1.35rem; }
 .auth-form-wrap { display: flex; align-items: center; justify-content: center; padding: 40px; }
 .auth-form { width: min(400px, 100%); }
 .auth-form .wordmark { margin-bottom: 55px; }
+.auth-form .brand-logo-auth { width: 164px; height: 92px; margin-bottom: 40px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
 .auth-form h2 { margin-bottom: 8px; color: var(--navy-900); font-family: Arial, sans-serif; font-size: 25px; font-weight: 700; letter-spacing: -.03em; }
 .auth-form > p { color: var(--muted); font-family: Arial, sans-serif; font-size: 12px; }
 .auth-form form { display: grid; gap: 17px; margin-top: 28px; }
@@ -402,5 +407,6 @@ h3 { font-size: 1.35rem; }
   .auth-panel { display: none; }
   .auth-form-wrap { padding: 28px 20px; }
   .auth-form .wordmark { margin-bottom: 40px; }
+  .auth-form .brand-logo-auth { margin-bottom: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
