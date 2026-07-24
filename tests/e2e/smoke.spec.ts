@@ -13,3 +13,13 @@ test('logged-out visitors are sent to staff login for the CRM', async ({ page })
   await expect(page).toHaveURL(/\/staff\/login/);
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });
+
+test('staff login exposes the password reset entry point', async ({ page }) => {
+  await page.goto('/staff/login');
+  const resetLink = page.getByRole('link', { name: 'Forgot password?' });
+  await expect(resetLink).toHaveAttribute('href', '/staff/forgot-password');
+  await resetLink.click();
+  await expect(page).toHaveURL(/\/staff\/forgot-password$/);
+  await expect(page.getByRole('heading', { name: 'Reset your password' })).toBeVisible();
+  await expect(page.getByLabel('Work email')).toBeVisible();
+});

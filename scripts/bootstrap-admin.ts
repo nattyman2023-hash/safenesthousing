@@ -6,6 +6,7 @@ import { config } from '../src/lib/env';
 import { sendSafeEmail, mailAdapterStatus } from '../src/lib/mail';
 import { userInviteSchema } from '../src/lib/crm-validation';
 import { ensureRbac } from '../prisma/rbac-definitions';
+import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
 
 /**
  * Controlled first-administrator bootstrap for a production environment.
@@ -18,13 +19,13 @@ import { ensureRbac } from '../prisma/rbac-definitions';
  * resetting an existing account.
  *
  * Usage:
- *   tsx scripts/bootstrap-admin.ts --email=admin@example.org --name="Jordan Blake" [options]
+ *   tsx scripts/bootstrap-admin.ts --name="Jordan Blake" [--email=admin@example.org] [options]
  *
  * Required:
- *   --email           Work email for the first administrator
  *   --name            Full name
  *
  * Optional:
+ *   --email           Work email for the first administrator (default: admin@safenesthosing.org.uk)
  *   --job-title       Job title (default: "Organisation administrator")
  *   --role            organisation-administrator (default) or super-administrator
  *   --org-name        Organisation name (default: "Safe Nest Housing & Support")
@@ -50,7 +51,7 @@ function hashToken(value: string) {
 }
 
 async function main() {
-  const email = readArg('email', 'BOOTSTRAP_ADMIN_EMAIL')?.trim().toLowerCase();
+  const email = readArg('email', 'BOOTSTRAP_ADMIN_EMAIL', DEFAULT_ADMIN_EMAIL)?.trim().toLowerCase();
   const name = readArg('name', 'BOOTSTRAP_ADMIN_NAME')?.trim();
   const jobTitle = readArg('job-title', 'BOOTSTRAP_ADMIN_JOB_TITLE', 'Organisation administrator');
   const role = readArg('role', 'BOOTSTRAP_ADMIN_ROLE', 'organisation-administrator');
@@ -58,7 +59,7 @@ async function main() {
   const orgSlug = readArg('org-slug', 'BOOTSTRAP_ORG_SLUG', 'safe-nest')!;
 
   if (!email || !name) {
-    console.error('Usage: tsx scripts/bootstrap-admin.ts --email=admin@example.org --name="Jordan Blake" [--job-title=...] [--role=organisation-administrator|super-administrator] [--org-name=...] [--org-slug=...]');
+    console.error(`Usage: tsx scripts/bootstrap-admin.ts --name="Jordan Blake" [--email=${DEFAULT_ADMIN_EMAIL}] [--job-title=...] [--role=organisation-administrator|super-administrator] [--org-name=...] [--org-slug=...]`);
     process.exitCode = 1;
     return;
   }
