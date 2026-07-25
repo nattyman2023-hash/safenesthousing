@@ -8,6 +8,7 @@ The complete schema is in `prisma/schema.prisma`. The local database uses SQLite
 | User / Membership / Role / Permission | Staff identity and RBAC | `email`, `active`, role slug, service/property scopes | Password hash, MFA secret | Administrators; deactivation is preferred to deletion |
 | UserSession / PasswordResetToken / MfaMethod / MfaRecoveryCode / LoginAttempt | Authentication state and security events | token hash, expiry, MFA verification time, recovery-code use, attempt outcome | Token hashes, encrypted MFA secret, recovery-code hashes | Security retention schedule; never expose raw tokens, secrets, or recovery codes after initial display |
 | SiteSetting | Structured editable public content | key/value | Emergency contact settings may be operationally sensitive | Content/admin roles |
+| OrganisationSecret | Encrypted organisation provider credentials | key, timestamps | Encrypted API key ciphertext | Organisation administrators only; never expose or include in audit metadata |
 | Service | Published service content and referral rules | slug, eligibility, published | None by default | Content and service roles |
 | Property / PropertyImage / Room | Public-safe and operational accommodation data | public name, neighbourhood, capacity, room status | Full address, refuge flags, room occupancy | Property roles; do not publish confidential fields |
 | NewsCategory / NewsPost / TeamMember | Public editorial content | slug, publishedAt, published | Check consent for resident stories | Content editors |

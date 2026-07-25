@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '../src/lib/db';
 import { audit } from '../src/lib/audit';
 import { config } from '../src/lib/env';
-import { sendSafeEmail, mailAdapterStatus } from '../src/lib/mail';
+import { sendSafeEmail, mailAdapterStatusWithStoredSecrets } from '../src/lib/mail';
 import { userInviteSchema } from '../src/lib/crm-validation';
 import { ensureRbac } from '../prisma/rbac-definitions';
 import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
@@ -111,9 +111,9 @@ async function main() {
 
   const setupUrl = `${config.appUrl}/staff/reset-password?token=${rawToken}`;
   let emailSent = false;
-  if (mailAdapterStatus().configured) {
+  if ((await mailAdapterStatusWithStoredSecrets(organisation.id)).configured) {
     try {
-      const result = await sendSafeEmail({ to: user.email, subject: 'Safe Nest — set up your administrator account', text: `An administrator account has been created for you. Set your password within 30 minutes: ${setupUrl}`, html: `<p>An administrator account has been created for you at Safe Nest.</p><p><a href="${setupUrl}">Set your password</a> within 30 minutes.</p>` });
+      const result = await sendSafeEmail({ organisationId: organisation.id, to: user.email, subject: 'Safe Nest — set up your administrator account', text: `An administrator account has been created for you. Set your password within 30 minutes: ${setupUrl}`, html: `<p>An administrator account has been created for you at Safe Nest.</p><p><a href="${setupUrl}">Set your password</a> within 30 minutes.</p>` });
       emailSent = result.sent;
     } catch (error) {
       console.warn('Could not send the setup email — the one-time link below still works.', error instanceof Error ? error.message : error);

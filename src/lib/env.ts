@@ -8,7 +8,7 @@ function hasStrongSecret(value: string | undefined) {
   return !!value && value.length >= 32 && !/(replace|change|development|local|secret)/i.test(value);
 }
 
-export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env) {
+export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env, options: { emailConfigured?: boolean } = {}) {
   const production = environment.NODE_ENV === 'production';
   const emailProvider = environment.EMAIL_PROVIDER ?? (environment.EMAILIT_API_KEY ? 'emailit' : 'smtp');
   const malwareProvider = environment.MALWARE_SCAN_PROVIDER ?? 'disabled';
@@ -20,7 +20,7 @@ export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env
     { name: 'DATABASE_URL', ok: !production || !!environment.DATABASE_URL },
     { name: 'AUTH_SECRET', ok: !production || hasStrongSecret(environment.AUTH_SECRET) },
     { name: 'FILE_SIGNING_SECRET', ok: !production || hasStrongSecret(environment.FILE_SIGNING_SECRET) },
-    { name: 'EMAIL', ok: !production || (emailProvider === 'emailit' ? !!environment.EMAILIT_API_KEY : emailProvider === 'smtp' && !!environment.SMTP_HOST && !!environment.SMTP_PORT) },
+    { name: 'EMAIL', ok: !production || (emailProvider === 'emailit' ? !!environment.EMAILIT_API_KEY || options.emailConfigured === true : emailProvider === 'smtp' && !!environment.SMTP_HOST && !!environment.SMTP_PORT) },
     { name: 'STORAGE_PROVIDER', ok: !production || ['local', 's3'].includes(environment.STORAGE_PROVIDER ?? 'local') },
     { name: 'STORAGE_BACKEND', ok: !production || (environment.STORAGE_PROVIDER ?? 'local') === 'local' || (!!environment.STORAGE_REGION && !!environment.STORAGE_BUCKET && !!environment.STORAGE_ACCESS_KEY && !!environment.STORAGE_SECRET_KEY) },
     { name: 'RATE_LIMIT_PROVIDER', ok: !production || ['memory', 'http'].includes(environment.RATE_LIMIT_PROVIDER ?? 'memory') },

@@ -17,6 +17,7 @@ model Organisation {
   memberships         Membership[]
   users               User[]
   roles               Role[]
+  secrets             OrganisationSecret[]
   services            Service[]
   properties          Property[]
   settings            SiteSetting[]
@@ -169,6 +170,18 @@ model SiteSetting {
   organisationId String
   key            String
   value          String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, key])
+}
+
+model OrganisationSecret {
+  id             String       @id @default(cuid())
+  organisationId String
+  key            String
+  secretCipher   String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organisation   Organisation @relation(fields: [organisationId], references: [id])
 
   @@unique([organisationId, key])

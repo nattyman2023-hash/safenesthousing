@@ -45,6 +45,7 @@ const documentColumns = await prisma.$queryRawUnsafe('PRAGMA table_info("Documen
 const retentionColumns = await prisma.$queryRawUnsafe('PRAGMA table_info("DataRetentionRule")');
 const subjectRequestColumns = await prisma.$queryRawUnsafe('PRAGMA table_info("DataSubjectRequest")');
 const retentionReviewTables = await prisma.$queryRawUnsafe('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = \'DataRetentionReviewRun\'');
+const organisationSecretTables = await prisma.$queryRawUnsafe('SELECT name FROM sqlite_master WHERE type = \'table\' AND name = \'OrganisationSecret\'');
 await prisma.$disconnect();
 if (!sessionColumns.some((column) => column.name === 'mfaVerifiedAt')) {
   const migrationName = migrationNames.find((name) => name.startsWith('0002_'));
@@ -64,6 +65,10 @@ if (!retentionColumns.some((column) => column.name === 'updatedAt') || !subjectR
 }
 if (!retentionReviewTables.length) {
   const migrationName = migrationNames.find((name) => name.startsWith('0006_'));
+  if (migrationName) executeMigration(resolve(migrationRoot, migrationName, 'migration.sql'));
+}
+if (!organisationSecretTables.length) {
+  const migrationName = migrationNames.find((name) => name.startsWith('0007_'));
   if (migrationName) executeMigration(resolve(migrationRoot, migrationName, 'migration.sql'));
 }
 console.log(`Local database checked at ${databaseFile}.`);

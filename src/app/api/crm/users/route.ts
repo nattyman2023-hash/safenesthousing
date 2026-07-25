@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       return created;
     });
     const resetUrl = `${config.appUrl}/staff/reset-password?token=${rawToken}`;
-    const email = await sendSafeEmail({ to: user.email, subject: 'Safe Nest account invitation', text: `An account has been created for you. Set your password within 30 minutes: ${resetUrl}`, html: `<p>An account has been created for you at Safe Nest.</p><p><a href="${resetUrl}">Set your password</a> within 30 minutes.</p>` });
+    const email = await sendSafeEmail({ organisationId: actor.organisationId, to: user.email, subject: 'Safe Nest account invitation', text: `An account has been created for you. Set your password within 30 minutes: ${resetUrl}`, html: `<p>An account has been created for you at Safe Nest.</p><p><a href="${resetUrl}">Set your password</a> within 30 minutes.</p>` });
     await audit({ organisationId: actor.organisationId, actorId: actor.id, action: 'USER_INVITED', resourceType: 'User', resourceId: user.id, after: { role: role.slug, emailSent: email.sent } });
     return NextResponse.json({ id: user.id, email: user.email, emailSent: email.sent });
   } catch (error) {

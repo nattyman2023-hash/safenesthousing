@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { S3Client } from '@aws-sdk/client-s3';
-import { caseNoteSchema, dataSubjectRequestCreateSchema, dataSubjectRequestUpdateSchema, housingBenefitUpdateSchema, invoiceCreateSchema, newsContentSchema, paymentSchema, placementCreateSchema, referralAssignmentSchema, retentionRuleCreateSchema, serviceContentSchema, siteSettingsUpdateSchema, userAccessUpdateSchema, userInviteSchema } from '@/lib/crm-validation';
+import { caseNoteSchema, dataSubjectRequestCreateSchema, dataSubjectRequestUpdateSchema, emailitApiKeySchema, housingBenefitUpdateSchema, invoiceCreateSchema, newsContentSchema, paymentSchema, placementCreateSchema, referralAssignmentSchema, retentionRuleCreateSchema, serviceContentSchema, siteSettingsUpdateSchema, userAccessUpdateSchema, userInviteSchema } from '@/lib/crm-validation';
 import { readPrivateDocument, removePrivateDocument, sanitiseDisplayName, scanDocument, sha256Bytes, storageAdapterStatus, storePrivateDocument, validateDocumentUpload } from '@/lib/storage';
 import { internalReferralSchema } from '@/lib/crm-validation';
 import { createTotpCode, decryptMfaSecret, encryptMfaSecret, generateRecoveryCodes, hashRecoveryCode, isRecoveryCode, verifyTotpCode } from '@/lib/mfa';
@@ -11,6 +11,7 @@ import { getClientIp, rateLimit, rateLimitAdapterStatus } from '@/lib/rate-limit
 import { mailAdapterStatus } from '@/lib/mail';
 import { mfaCodeSchema } from '@/lib/mfa-validation';
 import { isRetentionDue, parseRetentionReviewSummary } from '@/lib/retention-review';
+import { decryptSecret, encryptSecret } from '@/lib/secrets';
 
 describe('protected data validation', () => {
   it('normalises restricted case-note form values', () => {
@@ -57,6 +58,13 @@ describe('protected data validation', () => {
     expect(verifyTotpCode(secret, code, 59_000)).toBe(true);
     expect(verifyTotpCode(secret, code, 60_000)).toBe(true);
     expect(decryptMfaSecret(encryptMfaSecret(secret))).toBe(secret);
+  });
+
+  it('encrypts organisation provider keys and never accepts an empty key', () => {
+    const apiKey = 'em_test_provider_key';
+    expect(decryptSecret(encryptSecret(apiKey))).toBe(apiKey);
+    expect(emailitApiKeySchema.safeParse({ apiKey }).success).toBe(true);
+    expect(emailitApiKeySchema.safeParse({ apiKey: ' ' }).success).toBe(false);
   });
 
   it('generates one-time recovery codes without exposing their stored representation', () => {

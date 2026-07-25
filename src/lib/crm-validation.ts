@@ -141,6 +141,8 @@ export const siteSettingsUpdateSchema = z.object({
   })).min(1).max(20)
 });
 
+export const emailitApiKeySchema = z.object({ apiKey: z.string().trim().min(1, 'Enter an Emailit API key.').max(512, 'The Emailit API key is too long.') });
+
 const publishValue = z.preprocess((value) => value === true || value === 'true' || value === 'on', z.boolean());
 
 export const serviceContentSchema = z.object({

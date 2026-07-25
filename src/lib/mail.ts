@@ -1,8 +1,15 @@
 import nodemailer from 'nodemailer';
 import { config } from './env';
+import { getStoredEmailitApiKey, hasAnyStoredEmailitApiKey, hasStoredEmailitApiKey } from './email-settings';
 
 function emailProvider(environment: NodeJS.ProcessEnv = process.env) {
   return environment.EMAIL_PROVIDER ?? (environment.EMAILIT_API_KEY ? 'emailit' : 'smtp');
+}
+
+async function resolvedEmailProvider(organisationId?: string) {
+  if (process.env.EMAIL_PROVIDER) return process.env.EMAIL_PROVIDER;
+  if (process.env.EMAILIT_API_KEY || (organisationId && await hasStoredEmailitApiKey(organisationId))) return 'emailit';
+  return 'smtp';
 }
 
 export function mailAdapterStatus(environment: NodeJS.ProcessEnv = process.env) {
@@ -11,10 +18,19 @@ export function mailAdapterStatus(environment: NodeJS.ProcessEnv = process.env) 
   return { provider: 'smtp', configured: !!environment.SMTP_HOST && !!environment.SMTP_PORT, authenticated: !!environment.SMTP_USER };
 }
 
-export async function sendSafeEmail(input: { to: string; subject: string; text: string; html: string }): Promise<{ sent: boolean; messageId?: string }> {
-  const provider = emailProvider();
+export async function mailAdapterStatusWithStoredSecrets(organisationId?: string) {
+  const storedEmailitKey = organisationId
+    ? await hasStoredEmailitApiKey(organisationId).catch(() => false)
+    : await hasAnyStoredEmailitApiKey().catch(() => false);
+  const provider = process.env.EMAIL_PROVIDER ?? ((process.env.EMAILIT_API_KEY || storedEmailitKey) ? 'emailit' : 'smtp');
+  if (provider === 'emailit') return { provider, configured: !!process.env.EMAILIT_API_KEY || storedEmailitKey, authenticated: !!process.env.EMAILIT_API_KEY || storedEmailitKey };
+  return { provider: 'smtp', configured: !!process.env.SMTP_HOST && !!process.env.SMTP_PORT, authenticated: !!process.env.SMTP_USER };
+}
+
+export async function sendSafeEmail(input: { organisationId?: string; to: string; subject: string; text: string; html: string }): Promise<{ sent: boolean; messageId?: string }> {
+  const provider = await resolvedEmailProvider(input.organisationId);
   if (provider === 'emailit') {
-    const apiKey = process.env.EMAILIT_API_KEY;
+    const apiKey = (input.organisationId ? await getStoredEmailitApiKey(input.organisationId) : undefined) ?? process.env.EMAILIT_API_KEY;
     if (!apiKey) {
       if (process.env.NODE_ENV === 'production') throw new Error('EMAILIT_NOT_CONFIGURED');
       console.info(`[safe-email:development] ${input.subject} -> ${input.to}`);

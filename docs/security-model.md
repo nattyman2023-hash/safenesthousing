@@ -9,6 +9,7 @@
 - Restricted record access is visually marked and should create an audit event. Search and exports must use the same permission-aware projections.
 - MFA-required users complete an encrypted-secret TOTP challenge before the session can access the CRM. Privileged roles are forced into the MFA flow and elevated users' active sessions are revoked. Ten one-time recovery codes are generated after enrolment, stored only as hashes, returned once, and individually marked used; password acceptance and MFA completion are separate audit events.
 - Audit records do not store passwords, tokens, full document bodies, full case notes, or unnecessary safeguarding narratives.
+- Organisation provider credentials entered in the CRM are encrypted at rest with an `AUTH_SECRET`-derived AES-GCM key, are restricted to organisation administrators, and are never returned or written to audit metadata in plaintext. Environment secrets remain the deployment-level fallback.
 - Governance changes require the dedicated `governance.manage` permission. Retention rules require an approved policy reference, data-subject request closure requires a resolution note, and legal holds must be released in a separate audited step before closure.
 - The scheduled retention endpoint requires a strong bearer secret, compares it in constant time, persists only aggregate dry-run summaries, and never deletes or anonymises records.
 - Production secrets must be supplied through environment variables, rotated, and excluded from logs and source control.
