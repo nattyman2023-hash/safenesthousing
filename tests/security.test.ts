@@ -190,14 +190,17 @@ describe('protected data validation', () => {
 
   it('fails closed for missing production SMTP and unsupported storage providers', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
+    const previousEmailProvider = process.env.EMAIL_PROVIDER;
     const previousSmtpHost = process.env.SMTP_HOST;
     const previousSmtpPort = process.env.SMTP_PORT;
     process.env.NODE_ENV = 'production';
+    process.env.EMAIL_PROVIDER = 'smtp';
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_PORT;
     const { sendSafeEmail } = await import('@/lib/mail');
     await expect(sendSafeEmail({ to: 'test@example.test', subject: 'Test', text: 'Test', html: '<p>Test</p>' })).rejects.toThrow('SMTP_NOT_CONFIGURED');
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
+    if (previousEmailProvider === undefined) delete process.env.EMAIL_PROVIDER; else process.env.EMAIL_PROVIDER = previousEmailProvider;
     if (previousSmtpHost === undefined) delete process.env.SMTP_HOST; else process.env.SMTP_HOST = previousSmtpHost;
     if (previousSmtpPort === undefined) delete process.env.SMTP_PORT; else process.env.SMTP_PORT = previousSmtpPort;
     expect(runtimeConfigChecks({ NODE_ENV: 'production', STORAGE_PROVIDER: 's3' }).ready).toBe(false);
