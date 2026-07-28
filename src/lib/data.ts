@@ -85,7 +85,7 @@ export async function getNewsBySlug(slug: string) {
 
 export async function getDashboardData() {
   const user = await getCurrentUser();
-  if (!user) return { currentResidents: 0, availableRooms: 0, openReferrals: 0, openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
+  if (!user) return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
   const serviceIds = getScopedIds(user, 'serviceIds');
   const propertyIds = getScopedIds(user, 'propertyIds');
   const restricted = canViewRestricted(user);
@@ -93,10 +93,11 @@ export async function getDashboardData() {
   const propertyWhere = { organisationId: user.organisationId, ...(propertyIds.length ? { id: { in: propertyIds } } : {}) };
   const referralWhere = { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}), status: { notIn: ['CLOSED', 'DECLINED', 'WITHDRAWN', 'PLACED'] } };
   try {
-    const [clients, availableRooms, referrals, incidents, tasks, properties, reviews, hbExceptions] = await Promise.all([
+    const [clients, availableRooms, referrals, referralsNeedingAction, incidents, tasks, properties, reviews, hbExceptions] = await Promise.all([
       db.client.count({ where: { ...clientWhere, status: 'CURRENT' } }),
       db.room.count({ where: { status: 'AVAILABLE', property: propertyWhere } }),
       db.referral.count({ where: referralWhere }),
+      db.referral.findMany({ where: referralWhere, include: { service: true }, orderBy: [{ followUpDate: 'asc' }, { createdAt: 'asc' }], take: 5 }),
       db.incident.count({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { client: { serviceId: { in: serviceIds } } } : {}), ...(!restricted ? { restricted: false } : {}), status: { not: 'CLOSED' } } }),
       db.task.findMany({ where: { organisationId: user.organisationId, status: { not: 'DONE' } }, orderBy: { dueAt: 'asc' }, take: 6 }),
       db.property.findMany({ where: propertyWhere, include: { rooms: true } }),
@@ -105,9 +106,9 @@ export async function getDashboardData() {
     ]);
     const totalRooms = properties.reduce((total, property) => total + property.rooms.length, 0);
     const occupiedRooms = properties.reduce((total, property) => total + property.rooms.filter((room) => room.status === 'OCCUPIED').length, 0);
-    return { currentResidents: clients, availableRooms, openReferrals: referrals, openIncidents: incidents, tasks, properties, reviewCount: reviews, hbExceptions, occupancy: totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0 };
+    return { currentResidents: clients, availableRooms, openReferrals: referrals, referralsNeedingAction, openIncidents: incidents, tasks, properties, reviewCount: reviews, hbExceptions, occupancy: totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0 };
   } catch {
-    return { currentResidents: 24, availableRooms: 6, openReferrals: 11, openIncidents: 3, tasks: [{ id: 't1', title: 'Call back Northside referral', dueAt: new Date(Date.now() + 86400000), priority: 'HIGH', status: 'OPEN' }], properties: fallbackProperties.map((property) => ({ ...property, rooms: [] })), reviewCount: 5, hbExceptions: 2, occupancy: 82 };
+    return { currentResidents: 24, availableRooms: 6, openReferrals: 11, referralsNeedingAction: [], openIncidents: 3, tasks: [{ id: 't1', title: 'Call back Northside referral', dueAt: new Date(Date.now() + 86400000), priority: 'HIGH', status: 'OPEN' }], properties: fallbackProperties.map((property) => ({ ...property, rooms: [] })), reviewCount: 5, hbExceptions: 2, occupancy: 82 };
   }
 }
 
