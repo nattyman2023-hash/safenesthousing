@@ -207,3 +207,45 @@ export const dataSubjectRequestUpdateSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['notes'], message: 'Add a resolution note of at least 10 characters before closing the request.' });
   }
 });
+
+export const incidentCreateSchema = z.object({
+  clientId: z.string().trim().optional(),
+  category: z.string().trim().min(2).max(120),
+  severity: z.enum(['Low', 'Medium', 'High', 'Critical']),
+  incidentAt: z.string().trim().min(1, 'Enter the date and time of the incident.'),
+  location: z.string().trim().max(200).optional(),
+  description: z.string().trim().min(10).max(8000),
+  immediateAction: z.string().trim().max(4000).optional(),
+  restricted: booleanInput.default(true)
+});
+
+export const propertyCreateSchema = z.object({
+  publicName: z.string().trim().min(2).max(160),
+  serviceId: z.string().trim().optional(),
+  neighbourhood: z.string().trim().min(2).max(120),
+  serviceType: z.string().trim().min(2).max(120),
+  publicSummary: z.string().trim().min(10).max(1000),
+  eligibility: z.string().trim().min(5).max(2000),
+  capacity: z.coerce.number().int().min(1).max(1000),
+  publicVacancyState: z.string().trim().min(2).max(120),
+  accessibility: z.string().trim().max(500).optional(),
+  confidential: booleanInput.default(false)
+});
+
+export const roomCreateSchema = z.object({
+  propertyId: z.string().trim().min(1),
+  label: z.string().trim().min(1).max(80),
+  status: z.enum(['AVAILABLE', 'OCCUPIED', 'OFFERED', 'VOID', 'MAINTENANCE']).default('AVAILABLE'),
+  notes: z.string().trim().max(1000).optional()
+});
+
+export const clientCreateSchema = z.object({
+  displayName: z.string().trim().min(2).max(160),
+  serviceId: z.string().trim().optional(),
+  referralId: z.string().trim().optional(),
+  dateOfBirth: safeDateInput,
+  riskLevel: z.enum(['Low', 'Medium', 'High']).default('Medium'),
+  communicationNeeds: z.string().trim().max(1000).optional(),
+  restricted: booleanInput.default(false),
+  status: z.enum(['CURRENT', 'WAITLIST', 'MOVED_ON', 'ARCHIVED']).default('WAITLIST')
+});

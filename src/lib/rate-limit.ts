@@ -56,6 +56,8 @@ async function httpRateLimit(key: string, limit: number, windowMs: number): Prom
 }
 
 export async function rateLimit(key: string, limit = 8, windowMs = 60_000): Promise<{ allowed: boolean; retryAfter: number }> {
+  // Testing mode: never throttle when the dev auth bypass is active.
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEV_AUTH_BYPASS === 'true') return { allowed: true, retryAfter: 0 };
   const provider = process.env.RATE_LIMIT_PROVIDER ?? 'memory';
   if (provider === 'memory') return memoryRateLimit(key, limit, windowMs);
   if (provider === 'http') return httpRateLimit(key, limit, windowMs);

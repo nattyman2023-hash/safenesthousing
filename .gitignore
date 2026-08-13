@@ -12,3 +12,6 @@ coverage
 storage
 .claude/
 *.tsbuildinfo
+# Local development database (root-level file) and editor config
+/dev.db
+.vscode/

@@ -10,9 +10,7 @@ export function MetricCard({ label, value, detail, tone = 'teal', icon = 'chart'
   return <div className={`metric-card metric-${tone}`}><div className="metric-top"><span>{label}</span><span className="metric-icon"><Icon name={icon} size={17} /></span></div><strong>{value}</strong><p>{detail}</p></div>;
 }
 
-export function FilterBar({ placeholder = 'Search records', children }: { placeholder?: string; children?: React.ReactNode }) {
-  return <div className="filter-bar"><label className="search-box"><Icon name="search" size={17} /><input placeholder={placeholder} aria-label={placeholder} /></label>{children}<button className="crm-button crm-button-secondary">Filters <span className="filter-count">2</span></button></div>;
-}
+export { FilterBar } from './FilterBar';
 
 export function EmptyState({ title, message }: { title: string; message: string }) {
   return <div className="empty-state"><span className="empty-icon"><Icon name="clipboard" size={22} /></span><h3>{title}</h3><p>{message}</p></div>;
