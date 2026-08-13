@@ -2,6 +2,13 @@ import { db } from './db';
 import { formatDate } from './format';
 import { isTaskOverdue } from './domain';
 import { canViewRestricted, getCurrentUser, getScopedIds, hasScopedAccess } from './auth';
+import { presentationModeEnabled } from './presentation';
+
+/** Fictional fallback content is served outside production, or in any build explicitly running in
+ * presentation mode. In a normal live environment a database failure must surface honest empty
+ * states, never silently substitute demo records. */
+function suppressFictionalFallbacks() { return process.env.NODE_ENV === 'production' && !presentationModeEnabled(); }
+function fictional<T>(items: T[]): T[] { return suppressFictionalFallbacks() ? [] : items; }
 
 export const fallbackServices = [
   { id: 'supported-accommodation', slug: 'supported-accommodation', title: 'Supported accommodation', summary: 'A safe, settled home with practical support around you.', content: 'Our supported homes combine a real tenancy with consistent, person-led support.', audience: 'Adults who need a safe place to live while building independence.', serviceType: 'Supported accommodation' },
@@ -35,7 +42,7 @@ export const fallbackSiteSettings: Record<string, string> = {
   'homepage.stats.responseTarget': '7 days',
   'contact.generalEmail': 'hello@safenesthousing.org.uk',
   'contact.referralEmail': 'hello@safenesthousing.org.uk',
-  'contact.emergencyMessage': 'In immediate danger, call 999. For confidential support, call 0800 000 0000.'
+  'contact.emergencyMessage': 'In immediate danger, call 999. For confidential support, call 0808 157 0000.'
 };
 
 export async function getSiteSettings(): Promise<Record<string, string>> {
@@ -48,8 +55,8 @@ export async function getSiteSettings(): Promise<Record<string, string>> {
 export async function getServices() {
   try {
     const rows = await db.service.findMany({ where: { published: true }, orderBy: { displayOrder: 'asc' } });
-    return rows.length ? rows : fallbackServices;
-  } catch { return fallbackServices; }
+    return rows.length ? rows : fictional(fallbackServices);
+  } catch { return fictional(fallbackServices); }
 }
 
 export async function getServiceBySlug(slug: string) {
@@ -62,7 +69,7 @@ export async function getPublicProperties() {
     const rows = await db.property.findMany({ where: { published: true }, orderBy: { displayOrder: 'asc' }, select: { id: true, slug: true, publicName: true, neighbourhood: true, serviceType: true, publicSummary: true, capacity: true, publicVacancyState: true, facilities: true, eligibility: true, confidential: true } });
     if (rows.length) return rows.map((row) => ({ ...row, facilities: safeJsonArray(row.facilities) }));
   } catch { /* fall through to safe fictional fallback */ }
-  return fallbackProperties;
+  return fictional(fallbackProperties);
 }
 
 export async function getPublicPropertyBySlug(slug: string) {
@@ -75,7 +82,7 @@ export async function getPublishedNews() {
     const rows = await db.newsPost.findMany({ where: { published: true }, include: { category: true }, orderBy: { publishedAt: 'desc' } });
     if (rows.length) return rows.map((row) => ({ ...row, category: row.category.name }));
   } catch { /* fallback */ }
-  return fallbackNews;
+  return fictional(fallbackNews);
 }
 
 export async function getNewsBySlug(slug: string) {
@@ -108,6 +115,7 @@ export async function getDashboardData() {
     const occupiedRooms = properties.reduce((total, property) => total + property.rooms.filter((room) => room.status === 'OCCUPIED').length, 0);
     return { currentResidents: clients, availableRooms, openReferrals: referrals, referralsNeedingAction, openIncidents: incidents, tasks, properties, reviewCount: reviews, hbExceptions, occupancy: totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0 };
   } catch {
+    if (suppressFictionalFallbacks()) return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
     return { currentResidents: 24, availableRooms: 6, openReferrals: 11, referralsNeedingAction: [], openIncidents: 3, tasks: [{ id: 't1', title: 'Call back Northside referral', dueAt: new Date(Date.now() + 86400000), priority: 'HIGH', status: 'OPEN' }], properties: fallbackProperties.map((property) => ({ ...property, rooms: [] })), reviewCount: 5, hbExceptions: 2, occupancy: 82 };
   }
 }
@@ -120,12 +128,12 @@ export async function getCrmReferrals() {
     const rows = await db.referral.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}) }, include: { service: true, assignments: { orderBy: { assignedAt: 'desc' }, take: 1, include: { user: { select: { id: true, name: true, email: true } } } } }, orderBy: { createdAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
-  return [
+  return fictional([
     { id: 'ref-1', reference: 'SN-2607-001', status: 'TRIAGE', personName: 'A. Morgan', referrerName: 'J. Whitfield', referrerOrganisation: 'City Housing Options', service: { title: 'Homelessness support' }, createdAt: new Date('2026-07-17'), followUpDate: new Date('2026-07-21') },
     { id: 'ref-2', reference: 'SN-2607-002', status: 'ASSESSMENT_BOOKED', personName: 'R. Khan', referrerName: 'M. Green', referrerOrganisation: 'Community Mental Health Team', service: { title: 'Mental health' }, createdAt: new Date('2026-07-16'), followUpDate: new Date('2026-07-20') },
     { id: 'ref-3', reference: 'SN-2607-003', status: 'OFFER_MADE', personName: 'S. Taylor', referrerName: 'L. Byrne', referrerOrganisation: 'Leaving Care Service', service: { title: 'Care leavers and young people' }, createdAt: new Date('2026-07-14'), followUpDate: new Date('2026-07-18') },
     { id: 'ref-4', reference: 'SN-2607-004', status: 'AWAITING_INFORMATION', personName: 'Anonymous', referrerName: 'Safe Nest duty line', referrerOrganisation: 'Internal', service: { title: 'Domestic abuse' }, createdAt: new Date('2026-07-12'), followUpDate: new Date('2026-07-19') }
-  ];
+  ]);
 }
 
 export async function getReferralAssignees(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, serviceId: string) {
@@ -151,11 +159,11 @@ export async function getCrmClients() {
     const rows = await db.client.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}), ...(!canViewRestricted(user) ? { restricted: false } : {}) }, include: { service: true, placements: { include: { property: true } } }, orderBy: { updatedAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
-  return [
+  return fictional([
     { id: 'client-1', reference: 'SN-C-001', displayName: 'Amelia Morgan', status: 'CURRENT', riskLevel: 'Medium', restricted: false, service: { title: 'Homelessness support' }, placements: [{ property: { publicName: 'Alder Terrace' }, roomId: 'Room 4' }] },
     { id: 'client-2', reference: 'SN-C-002', displayName: 'Rafi Khan', status: 'CURRENT', riskLevel: 'Low', restricted: false, service: { title: 'Mental health' }, placements: [{ property: { publicName: 'Fenwick Road' }, roomId: 'Room 2' }] },
     { id: 'client-3', reference: 'SN-C-003', displayName: 'Sofia Taylor', status: 'WAITLIST', riskLevel: 'High', restricted: true, service: { title: 'Care leavers and young people' }, placements: [] }
-  ];
+  ]);
 }
 
 export async function getCrmIncidents() {
@@ -166,11 +174,11 @@ export async function getCrmIncidents() {
     const rows = await db.incident.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { client: { serviceId: { in: serviceIds } } } : {}), ...(!canViewRestricted(user) ? { restricted: false } : {}) }, include: { client: true, updates: { orderBy: { createdAt: 'desc' }, take: 10 }, actions: { orderBy: { dueDate: 'asc' } } }, orderBy: { incidentAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
-  return [
+  return fictional([
     { id: 'incident-1', reference: 'INC-2607-018', category: 'Welfare concern', severity: 'High', status: 'UNDER_REVIEW', incidentAt: new Date('2026-07-17'), restricted: true, client: { displayName: 'Restricted record' } },
     { id: 'incident-2', reference: 'INC-2607-017', category: 'Property safety', severity: 'Medium', status: 'ACTION_PLAN_ACTIVE', incidentAt: new Date('2026-07-15'), restricted: false, client: { displayName: 'Amelia Morgan' } },
     { id: 'incident-3', reference: 'INC-2607-014', category: 'Accident', severity: 'Low', status: 'CLOSED', incidentAt: new Date('2026-07-09'), restricted: false, client: { displayName: 'Rafi Khan' } }
-  ];
+  ]);
 }
 
 export async function getCrmTasks() {
@@ -180,11 +188,11 @@ export async function getCrmTasks() {
     const rows = await db.task.findMany({ where: { organisationId: user.organisationId }, include: { assignedTo: { select: { id: true, name: true } } }, orderBy: { dueAt: 'asc' } });
     return rows.map((task) => ({ ...task, overdue: isTaskOverdue(task) }));
   } catch { /* fallback */ }
-  return [
+  return fictional([
     { id: 'task-1', title: 'Call back Northside referral', description: 'Confirm assessment availability.', priority: 'HIGH', status: 'OPEN', dueAt: new Date('2026-07-18'), overdue: false },
     { id: 'task-2', title: 'Review support plan', description: 'Quarterly review due for current resident.', priority: 'MEDIUM', status: 'OPEN', dueAt: new Date('2026-07-19'), overdue: false },
     { id: 'task-3', title: 'Upload gas safety certificate', description: 'Alder Terrace compliance folder.', priority: 'HIGH', status: 'OPEN', dueAt: new Date('2026-07-17'), overdue: true }
-  ];
+  ]);
 }
 
 export async function getRotaShifts() {

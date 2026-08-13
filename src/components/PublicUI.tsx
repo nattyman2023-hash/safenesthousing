@@ -112,7 +112,7 @@ export function StatsBand({ settings }: { settings?: Record<string, string> }) {
 }
 
 export function UrgentHelp() {
-  return <section className="urgent-band"><div className="container urgent-inner"><div><p className="eyebrow">Need help now?</p><h2>If there is immediate danger, call 999.</h2><p>For confidential domestic abuse support, call our 24/7 line on <strong>0800 000 0000</strong>. You do not need to use the referral form.</p></div><ButtonLink href="/contact" secondary>Other ways to contact us <Icon name="arrow" size={15} /></ButtonLink></div></section>;
+  return <section className="urgent-band"><div className="container urgent-inner"><div><p className="eyebrow">Need help now?</p><h2>If there is immediate danger, call 999.</h2><p>For confidential domestic abuse support, call our 24/7 line on <strong>0808 157 0000</strong>. You do not need to use the referral form.</p></div><ButtonLink href="/contact" secondary>Other ways to contact us <Icon name="arrow" size={15} /></ButtonLink></div></section>;
 }
 
 export function PublicFormField({ label, name, type = 'text', required = false, placeholder, children }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string; children?: React.ReactNode }) {

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { presentationModeEnabled } from './presentation';
 export { storageAdapterStatus } from './storage-status';
 
 const allowedTypes = new Map([
@@ -75,7 +76,7 @@ export function sha256Bytes(bytes: Uint8Array) {
 
 export async function scanDocument(bytes: Buffer, input: { displayName: string; mimeType: string; sha256: string }): Promise<{ status: MalwareScanStatus; provider: string; sha256: string; scannedAt: Date }> {
   const provider = process.env.MALWARE_SCAN_PROVIDER ?? 'disabled';
-  const required = process.env.NODE_ENV === 'production' || process.env.REQUIRE_MALWARE_SCAN === 'true';
+  const required = (process.env.NODE_ENV === 'production' && !presentationModeEnabled()) || process.env.REQUIRE_MALWARE_SCAN === 'true';
   const scannedAt = new Date();
   if (provider === 'disabled') {
     if (required) throw new Error('MALWARE_SCAN_REQUIRED');

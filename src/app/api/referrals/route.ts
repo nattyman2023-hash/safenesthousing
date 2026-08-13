@@ -23,6 +23,6 @@ export async function POST(request: Request) {
     return created;
   });
   await audit({ organisationId: organisation.id, action: 'REFERRAL_CREATED', resourceType: 'Referral', resourceId: referral.id, after: { reference, status: 'NEW', service: service.slug } });
-  await sendSafeEmail({ organisationId: organisation.id, to: parsed.data.referrerEmail, subject: `Safe Nest — referral ${reference} received`, text: `Thank you. We have received your referral ${reference}. Please call 0800 000 0000 for urgent domestic-abuse support or 999 in immediate danger.`, html: `<p>Thank you. We have received your referral <strong>${reference}</strong>.</p><p>We will acknowledge it within seven days. Please call <strong>0800 000 0000</strong> for urgent domestic-abuse support or 999 in immediate danger.</p>` });
+  await sendSafeEmail({ organisationId: organisation.id, to: parsed.data.referrerEmail, subject: `Safe Nest — referral ${reference} received`, text: `Thank you. We have received your referral ${reference}. Please call 0808 157 0000 for urgent domestic-abuse support or 999 in immediate danger.`, html: `<p>Thank you. We have received your referral <strong>${reference}</strong>.</p><p>We will acknowledge it within seven days. Please call <strong>0808 157 0000</strong> for urgent domestic-abuse support or 999 in immediate danger.</p>` });
   return NextResponse.json({ reference });
 }

@@ -201,16 +201,19 @@ describe('protected data validation', () => {
     const previousEmailProvider = process.env.EMAIL_PROVIDER;
     const previousSmtpHost = process.env.SMTP_HOST;
     const previousSmtpPort = process.env.SMTP_PORT;
+    const previousPresentationMode = process.env.SAFE_NEST_PRESENTATION_MODE;
     process.env.NODE_ENV = 'production';
     process.env.EMAIL_PROVIDER = 'smtp';
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_PORT;
+    delete process.env.SAFE_NEST_PRESENTATION_MODE;
     const { sendSafeEmail } = await import('@/lib/mail');
     await expect(sendSafeEmail({ to: 'test@example.test', subject: 'Test', text: 'Test', html: '<p>Test</p>' })).rejects.toThrow('SMTP_NOT_CONFIGURED');
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
     if (previousEmailProvider === undefined) delete process.env.EMAIL_PROVIDER; else process.env.EMAIL_PROVIDER = previousEmailProvider;
     if (previousSmtpHost === undefined) delete process.env.SMTP_HOST; else process.env.SMTP_HOST = previousSmtpHost;
     if (previousSmtpPort === undefined) delete process.env.SMTP_PORT; else process.env.SMTP_PORT = previousSmtpPort;
+    if (previousPresentationMode === undefined) delete process.env.SAFE_NEST_PRESENTATION_MODE; else process.env.SAFE_NEST_PRESENTATION_MODE = previousPresentationMode;
     expect(runtimeConfigChecks({ NODE_ENV: 'production', STORAGE_PROVIDER: 's3' }).ready).toBe(false);
   });
 
