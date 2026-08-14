@@ -15,3 +15,7 @@ storage
 # Local development database (root-level file) and editor config
 /dev.db
 .vscode/
+# Local probe/server output files
+/*.out
+/*.err
+/cookies.txt
