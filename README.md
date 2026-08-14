@@ -14,7 +14,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open `http://localhost:3000`. The seeded development staff account is `admin@safenest.test` with password `ChangeMe!123`. Change or remove this account before any shared environment. Seed data is fictional and the seed script must not run automatically in production.
+Open `http://localhost:3000`. The seeded development staff account is `admin@safenesthousing.co.uk` with password `ChangeMe!123`. Change or remove this account before any shared environment. Seed data is fictional and the seed script must not run automatically in production.
 
 ## Useful checks
 
@@ -64,7 +64,7 @@ npm run build
 npm run start
 ```
 
-Open the site and sign in as `admin@safenest.test` with password `ChangeMe!123`. Real login and
+Open the site and sign in as `admin@safenesthousing.co.uk` with password `ChangeMe!123`. Real login and
 role-based permissions are active (there is **no** sandbox bypass in a production build); MFA is held
 off until Phase 2.
 

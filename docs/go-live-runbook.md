@@ -19,7 +19,7 @@ confidential, or service-user data is entered at this stage.
   RBAC, MFA, restricted-record masking, audit, or rate limiting, and must never be set in a real
   go-live deploy.
 - The testing bypass (`ENABLE_DEV_AUTH_BYPASS`) is OFF for presentations — staff sign in for real via
-  the seeded administrator (`admin@safenest.test` / `ChangeMe!123`), with MFA held off until Phase 2.
+  the seeded administrator (`admin@safenesthousing.co.uk` / `ChangeMe!123`), with MFA held off until Phase 2.
   The bypass is only for ad-hoc local exploration and is hard-disabled whenever `NODE_ENV=production`.
 
 ### Presenting to stakeholders

@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { computeTotp } from './totp';
 
-export const ADMIN_EMAIL = 'admin@safenest.test';
+export const ADMIN_EMAIL = 'admin@safenesthousing.co.uk';
 export const ADMIN_PASSWORD = 'ChangeMe!123';
 
 export async function enterCredentials(page: Page, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {

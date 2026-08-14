@@ -25,7 +25,7 @@ import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
  *   --name            Full name
  *
  * Optional:
- *   --email           Work email for the first administrator (default: admin@safenesthousing.org.uk)
+ *   --email           Work email for the first administrator (default: admin@safenesthousing.co.uk)
  *   --job-title       Job title (default: "Organisation administrator")
  *   --role            organisation-administrator (default) or super-administrator
  *   --org-name        Organisation name (default: "Safe Nest Housing & Support")
