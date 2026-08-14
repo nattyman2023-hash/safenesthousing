@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   poweredByHeader: false,
   // pdfkit loads its built-in font data files (e.g. Helvetica.afm) via dynamic requires that
   // bundlers can't statically resolve — excluding it from bundling lets Node require it directly.
