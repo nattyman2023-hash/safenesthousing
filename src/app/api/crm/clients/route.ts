@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { clientCreateSchema } from '@/lib/crm-validation';
 
 function makeReference() {
@@ -11,7 +11,7 @@ function makeReference() {
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('clients.write');
+    const user = await requireUser();
     const parsed = clientCreateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the client details.' }, { status: 400 });
     if (parsed.data.serviceId) {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: client.id, reference: client.reference });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to create the client.' : message }, { status });
   }
 }

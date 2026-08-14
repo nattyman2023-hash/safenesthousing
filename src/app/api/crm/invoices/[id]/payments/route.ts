@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { paymentSchema } from '@/lib/crm-validation';
 import { invoiceRemaining } from '@/lib/domain';
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('finance.write');
+    const user = await requireUser();
     const parsed = paymentSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the payment details.' }, { status: 400 });
     const paidAt = new Date(parsed.data.paidAt);
@@ -28,7 +28,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     return NextResponse.json({ id: result.payment.id, invoiceStatus: result.updatedInvoice.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to record the payment.' : message }, { status });
   }
 }

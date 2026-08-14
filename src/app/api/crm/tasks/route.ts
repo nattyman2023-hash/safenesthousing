@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { taskCreateSchema } from '@/lib/crm-validation';
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('tasks.write');
+    const user = await requireUser();
     const parsed = taskCreateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the task details.' }, { status: 400 });
     const dueAt = parsed.data.dueAt ? new Date(parsed.data.dueAt) : undefined;
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: task.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to create the task.' : message }, { status });
   }
 }

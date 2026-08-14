@@ -20,6 +20,6 @@ export function TableCard({ children, title, count }: { children: React.ReactNod
   return <section className="table-card">{title && <div className="table-card-header"><h2>{title}{count && <span>{count}</span>}</h2><Link href="#view-all">View all <Icon name="arrow" size={14} /></Link></div>}<div className="table-scroll">{children}</div></section>;
 }
 
-export function RestrictedNote() { return <div className="restricted-note"><Icon name="shield" size={15} /><span>Restricted record — access is logged and limited to authorised staff.</span></div>; }
+export function RestrictedNote() { return <div className="restricted-note"><Icon name="shield" size={15} /><span>Restricted record — access is logged.</span></div>; }
 
 export { StatusBadge };

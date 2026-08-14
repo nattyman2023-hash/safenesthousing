@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { housingBenefitUpdateSchema } from '@/lib/crm-validation';
 
 function parseDate(value: string | undefined, label: string): Date | null | undefined {
@@ -14,7 +14,7 @@ function parseDate(value: string | undefined, label: string): Date | null | unde
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('finance.write');
+    const user = await requireUser();
     const parsed = housingBenefitUpdateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the Housing Benefit details.' }, { status: 400 });
 
@@ -30,7 +30,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     return NextResponse.json({ id: updated.id, status: updated.status, paymentStatus: updated.paymentStatus });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : message.startsWith('Enter a valid') ? 400 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : message.startsWith('Enter a valid') ? 400 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to save the Housing Benefit claim.' : message }, { status });
   }
 }

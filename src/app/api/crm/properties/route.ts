@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { propertyCreateSchema } from '@/lib/crm-validation';
 
 function slugify(value: string) {
@@ -10,7 +10,7 @@ function slugify(value: string) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('properties.write');
+    const user = await requireUser();
     const parsed = propertyCreateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the property details.' }, { status: 400 });
     if (parsed.data.serviceId) {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: property.id, slug: property.slug });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to create the property.' : message }, { status });
   }
 }

@@ -33,7 +33,6 @@ export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env
     : [];
   if (production && (environment.STORAGE_PROVIDER ?? 'local') === 'local') warnings.push('STORAGE_PROVIDER=local requires a persistent private filesystem and a single application instance; use S3-compatible object storage for multiple instances.');
   if (malwareScanRequired && malwareProvider === 'disabled') warnings.push('Malware scanning is required for this environment but MALWARE_SCAN_PROVIDER=disabled.');
-  // MFA is no longer part of the application flow; MFA_ENABLED / DISABLE_MFA_FOR_DEV are obsolete.
   return { environment: production ? 'production' : 'development', production, ready: checks.every((check) => check.ok), checks, warnings };
 }
 

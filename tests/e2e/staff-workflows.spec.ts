@@ -1,12 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
-import { prisma, resetStaffMfa } from './db-reset';
-import { ADMIN_EMAIL, enterCredentials, completeMfaEnrollment } from './staff-auth';
+import { prisma, resetStaffSession } from './db-reset';
+import { ADMIN_EMAIL, enterCredentials, assertSignedIn } from './staff-auth';
 
 test.describe.serial('Staff sign-in and CRM operations', () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    await resetStaffMfa(ADMIN_EMAIL);
+    await resetStaffSession(ADMIN_EMAIL);
     page = await browser.newPage();
   });
 
@@ -15,9 +15,9 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
     await prisma.$disconnect();
   });
 
-  test('staff can sign in and enrol multi-factor authentication', async () => {
+  test('staff can sign in without a second-factor challenge', async () => {
     await enterCredentials(page);
-    await completeMfaEnrollment(page);
+    await assertSignedIn(page);
     await expect(page.getByRole('heading', { name: 'Good morning, team' })).toBeVisible();
   });
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { canViewRestricted, requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { supportGoalSchema, supportReviewSchema } from '@/lib/crm-validation';
 
 function validDate(value: string | undefined) { if (!value) return undefined; const date = new Date(value); return Number.isNaN(date.getTime()) ? null : date; }
@@ -9,11 +9,10 @@ function validDate(value: string | undefined) { if (!value) return undefined; co
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('clients.write');
+    const user = await requireUser();
     const body = await request.json() as { type?: string; supportPlanId?: string } & Record<string, unknown>;
     const client = await db.client.findFirst({ where: { id: params.id, organisationId: user.organisationId } });
     if (!client) return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
-    if (client.restricted && !canViewRestricted(user)) return NextResponse.json({ error: 'You are not authorised to access this client record.' }, { status: 403 });
 
     if (body.type === 'goal') {
       const parsed = supportGoalSchema.safeParse(body);
@@ -44,7 +43,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Choose a support-plan action.' }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to save the support-plan change.' : message }, { status });
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { dataSubjectRequestCreateSchema } from '@/lib/crm-validation';
 import { db } from '@/lib/db';
 
@@ -12,19 +12,19 @@ function parseDueAt(value?: string) {
 
 export async function GET() {
   try {
-    const user = await requirePermission('governance.manage');
+    const user = await requireUser();
     const requests = await db.dataSubjectRequest.findMany({ where: { organisationId: user.organisationId }, orderBy: [{ legalHold: 'desc' }, { createdAt: 'desc' }] });
     return NextResponse.json({ requests });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to load data-subject requests.' : message }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('governance.manage');
+    const user = await requireUser();
     const parsed = dataSubjectRequestCreateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the request details.' }, { status: 400 });
     const dueAt = parseDueAt(parsed.data.dueAt);
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, request: requestRecord }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to create the data-subject request.' : message }, { status });
   }
 }

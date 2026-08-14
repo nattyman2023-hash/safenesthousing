@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { randomInt } from 'node:crypto';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { internalReferralSchema } from '@/lib/crm-validation';
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('referrals.write');
+    const user = await requireUser();
     const parsed = internalReferralSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the referral details.' }, { status: 400 });
     const service = await db.service.findFirst({ where: { id: parsed.data.serviceId, organisationId: user.organisationId, published: true } });
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: referral.id, reference: referral.reference });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to save the referral.' : message }, { status });
   }
 }

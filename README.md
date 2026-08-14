@@ -1,6 +1,8 @@
 # Safe Nest Housing & Support
 
-Server-rendered Safe Nest public website and secure staff CRM. The project is built with Next.js App Router, TypeScript, Prisma, SQLite for local development, cookie-backed sessions, Zod validation, and provider-independent email/storage seams.
+Server-rendered Safe Nest public website and secure staff CRM. The project uses Next.js App Router,
+TypeScript, Prisma, SQLite for local development, cookie-backed sessions, Zod validation, and
+provider-independent email and storage seams.
 
 ## Local development
 
@@ -14,7 +16,9 @@ npm run db:seed
 npm run dev
 ```
 
-Open `http://localhost:3000`. The seeded development staff account is `admin@safenesthousing.co.uk` with password `ChangeMe!123`. Change or remove this account before any shared environment. Seed data is fictional and the seed script must not run automatically in production.
+Open `http://localhost:3000`. The seeded development staff account is
+`admin@safenesthousing.co.uk` with password `ChangeMe!123`. Change or remove it before any shared
+environment. Seed data is fictional and the seed script must not run automatically in production.
 
 ## Useful checks
 
@@ -27,53 +31,40 @@ npm run build
 
 ## Project shape
 
-- `src/app/(public)` — public website and policy routes.
-- `src/app/staff` — staff authentication routes.
-- `src/app/crm` — separate CRM shell and operational routes.
-- `src/app/api` — server-backed forms and protected mutations.
-- `src/components` — reusable public and CRM UI.
-- `src/lib` — Prisma client, validation, domain rules, auth, audit, email, and data projections.
-- `prisma/schema.prisma` — relational domain schema.
-- `prisma/seed.ts` — idempotent fictional development data (never run in production).
-- `prisma/rbac-definitions.ts` — shared, production-safe RBAC scaffolding used by both the seed script and the admin bootstrap script.
-- `scripts/bootstrap-admin.ts` — creates the real RBAC scaffolding and exactly one real administrator for production (`npm run bootstrap:admin`).
-- `docs/` — architecture, data model, security, privacy, testing, deployment, and operations guidance.
+- `src/app/(public)` - public website and policy routes.
+- `src/app/staff` - staff authentication routes.
+- `src/app/crm` - separate CRM shell and operational routes.
+- `src/app/api` - server-backed forms and protected mutations.
+- `src/components` - reusable public and CRM UI.
+- `src/lib` - Prisma client, validation, domain rules, auth, audit, email, and data projections.
+- `prisma/schema.prisma` - relational domain schema.
+- `prisma/seed.ts` - idempotent fictional development data (never run in production).
+- `prisma/rbac-definitions.ts` - compatibility metadata used by seed/bootstrap tooling; it is not a runtime access gate.
+- `scripts/bootstrap-admin.ts` - creates the real bootstrap records and exactly one real administrator for production.
+- `docs/` - architecture, data model, security, privacy, testing, deployment, and operations guidance.
 
-## Access model (assessment build)
+## Access model
 
-The application uses a single, predictable authentication state: **authenticated = complete,
-unrestricted access** to every CRM module and API. MFA, RBAC permission gates, role checks,
-service/property scoping, restricted-record gating, and the previous presentation-mode/dev-bypass
-flags have all been removed from the active flow. Login (bcrypt password + a hashed httpOnly session
-cookie) is the only access boundary.
+The application uses one predictable authentication state: **authenticated means complete access** to
+every CRM module and API. Login (bcrypt password verification plus a hashed httpOnly session cookie)
+is the only access boundary. Legacy membership, role, permission, and MFA columns/tables remain only
+so existing databases can migrate safely; the active session and CRM code do not depend on them.
 
-Run it:
+Run it with `npm run dev`, or use `npm run build && npm run start` for the production server. Sign in
+at `/staff/login` using the local seeded account. Tenant organisation filters, input validation,
+password hashing, safe private file paths, audit logging, append-only case notes, integer money
+values, and public confidentiality projections remain active.
 
-```bash
-npm install
-npm run db:migrate
-npm run db:seed
-npm run dev          # or: npm run build && npm run start
-```
+Before real resident data, complete the security and operations hardening review in
+[docs/go-live-runbook.md](docs/go-live-runbook.md), including strong secrets, HTTPS/domain,
+persistent storage, backups, email, malware scanning, and any future access-control redesign.
 
-Open http://localhost:3000 and sign in at /staff/login as `admin@safenesthousing.co.uk` with password
-`ChangeMe!123`. There is no MFA challenge and no permission/role gate on any CRM page or API.
+## Production boundary
 
-Phase 2 (before real resident data) will re-introduce MFA, RBAC, real secrets, HTTPS/domain,
-persistent storage, backups, and email/malware integrations as a deliberate redesign — see
-[docs/go-live-runbook.md](docs/go-live-runbook.md). Fundamental engineering protections (input
-validation, ORM/SQL safety, password hashing, safe file paths, audit logging, append-only case
-notes, money-as-minor-units, tenant scoping) remain in force throughout.
+The current migration target is persistent SQLite for a single-instance VPS deployment. If scale or
+concurrency requires PostgreSQL, change the Prisma provider and generate a PostgreSQL migration before
+deployment; do not point SQLite SQL at PostgreSQL. Private object storage, email, rate limiting,
+malware scanning, secrets, HTTPS, backups, and organisational policy approvals are required before
+launch.
 
-`SAFE_NEST_PRESENTATION_MODE=true` is safe for demo/UAT builds: it keeps fictional seed data visible
-if the database is momentarily unreachable and lets unconfigured email and malware scanning degrade to
-a logged no-op so every form and upload completes end-to-end. It never relaxes authentication, RBAC,
-MFA, restricted-record masking, audit, or rate limiting — and it **must never be set in a real go-live
-deployment**.
-## Important production boundary
-
-Local development and the current generated migration target a persistent SQLite database so the full workflow can run without a hosted database. A single-instance VPS deployment can use a protected persistent SQLite file with tested backup/restore. If the organisation needs PostgreSQL for scale or high concurrency, change the Prisma provider and generate a new PostgreSQL migration before deployment; do not point the SQLite migration at PostgreSQL. Private object storage, SMTP/transactional email, rate limiting, malware scanning, secrets, HTTPS, and organisational policy approvals are required before launch.
-
-Software alone does not make Safe Nest UK GDPR compliant. Lawful bases, retention periods, safeguarding policy, DPIA conclusions, access governance, and data-sharing arrangements need approval by the organisation's responsible legal, safeguarding, and data-protection personnel.
-
-See [docs/deployment-hostinger.md](docs/deployment-hostinger.md) for the server deployment path.
+See [docs/deployment-hostinger.md](docs/deployment-hostinger.md) for the Hostinger deployment path.

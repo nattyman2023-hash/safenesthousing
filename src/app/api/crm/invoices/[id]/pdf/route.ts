@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { db } from '@/lib/db';
-import { requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { invoiceRemaining } from '@/lib/domain';
 import { formatDate, formatMoneyMinor } from '@/lib/format';
 
@@ -79,7 +79,7 @@ function renderInvoicePdf(invoice: NonNullable<InvoiceWithLines>): Promise<Buffe
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('finance.read');
+    const user = await requireUser();
     const invoice = await loadInvoice(params.id, user.organisationId);
     if (!invoice) return Response.json({ error: 'Invoice not found.' }, { status: 404 });
     const buffer = await renderInvoicePdf(invoice);
@@ -92,7 +92,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return Response.json({ error: status === 500 ? 'Unable to generate the invoice PDF.' : message }, { status });
   }
 }

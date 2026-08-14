@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { hasRole, requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { rotaShiftSchema } from '@/lib/crm-validation';
 import { hasRotaOverlap } from '@/lib/domain';
-
-const overrideRoles = ['super-administrator', 'organisation-administrator', 'service-manager'];
 
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('rota.write');
+    const user = await requireUser();
     const parsed = rotaShiftSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the shift details.' }, { status: 400 });
     const shift = await db.rotaShift.findFirst({ where: { id: params.id, organisationId: user.organisationId }, include: { assignments: true } });
@@ -39,7 +37,6 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       const existing = await db.rotaAssignment.findMany({ where: { userId: nextAssigneeId, shiftId: { not: shift.id }, shift: { organisationId: user.organisationId } }, include: { shift: { select: { startsAt: true, endsAt: true } } } });
       if (hasRotaOverlap(existing.map((item) => item.shift), startsAt, endsAt)) {
         if (!parsed.data.overrideReason) return NextResponse.json({ error: 'This assignment overlaps an existing shift. Add an authorised override reason to continue.' }, { status: 409 });
-        if (!hasRole(user, overrideRoles)) return NextResponse.json({ error: 'Only an authorised manager may override a rota conflict.' }, { status: 403 });
       }
     }
 
@@ -67,7 +64,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     return NextResponse.json({ id: updated.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to update the rota shift.' : message }, { status });
   }
 }

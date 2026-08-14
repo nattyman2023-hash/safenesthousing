@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { ensureRbac } from './rbac-definitions';
+import { ensureRoleLabels } from './rbac-definitions';
 
 const prisma = new PrismaClient();
 
 async function main() {
   const organisation = await prisma.organisation.upsert({ where: { slug: 'safe-nest' }, update: {}, create: { id: 'org-safe-nest', name: 'Safe Nest Housing & Support', slug: 'safe-nest', timezone: 'Europe/London' } });
-  const { roles } = await ensureRbac(prisma, organisation.id);
+  const roles = await ensureRoleLabels(prisma, organisation.id);
   const passwordHash = await bcrypt.hash('ChangeMe!123', 12);
-  const admin = await prisma.user.upsert({ where: { email: 'admin@safenesthousing.co.uk' }, update: {}, create: { id: 'user-admin', organisationId: organisation.id, email: 'admin@safenesthousing.co.uk', name: 'Development admin', jobTitle: 'Organisation administrator', passwordHash, mfaRequired: false } });
+  const admin = await prisma.user.upsert({ where: { email: 'admin@safenesthousing.co.uk' }, update: {}, create: { id: 'user-admin', organisationId: organisation.id, email: 'admin@safenesthousing.co.uk', name: 'Development admin', jobTitle: 'Organisation administrator', passwordHash } });
   await prisma.membership.upsert({ where: { organisationId_userId_roleId: { organisationId: organisation.id, userId: admin.id, roleId: roles.get('organisation-administrator')! } }, update: {}, create: { organisationId: organisation.id, userId: admin.id, roleId: roles.get('organisation-administrator')! } });
   const supportLead = await prisma.user.upsert({ where: { email: 'j.whitfield@safenest.test' }, update: {}, create: { id: 'user-support-lead', organisationId: organisation.id, email: 'j.whitfield@safenest.test', name: 'J. Whitfield', jobTitle: 'Support lead', passwordHash } });
   await prisma.membership.upsert({ where: { organisationId_userId_roleId: { organisationId: organisation.id, userId: supportLead.id, roleId: roles.get('support-lead')! } }, update: {}, create: { organisationId: organisation.id, userId: supportLead.id, roleId: roles.get('support-lead')! } });

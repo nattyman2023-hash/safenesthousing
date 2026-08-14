@@ -3,7 +3,6 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { caseNoteSchema, dataSubjectRequestCreateSchema, dataSubjectRequestUpdateSchema, emailitApiKeySchema, housingBenefitUpdateSchema, invoiceCreateSchema, newsContentSchema, paymentSchema, placementCreateSchema, referralAssignmentSchema, retentionRuleCreateSchema, serviceContentSchema, siteSettingsUpdateSchema, userAccessUpdateSchema, userInviteSchema } from '@/lib/crm-validation';
 import { readPrivateDocument, removePrivateDocument, sanitiseDisplayName, scanDocument, sha256Bytes, storageAdapterStatus, storePrivateDocument, validateDocumentUpload } from '@/lib/storage';
 import { internalReferralSchema } from '@/lib/crm-validation';
-import { canViewRestricted, getScopedIds, hasScopedAccess } from '@/lib/auth';
 import { toCsv } from '@/lib/csv';
 import { runtimeConfigChecks } from '@/lib/env';
 import { getClientIp, rateLimit, rateLimitAdapterStatus } from '@/lib/rate-limit';
@@ -49,23 +48,11 @@ describe('protected data validation', () => {
     }
   });
 
-  // MFA/TOTP verification removed — MFA is no longer part of the application flow.
-
   it('encrypts organisation provider keys and never accepts an empty key', () => {
     const apiKey = 'em_test_provider_key';
     expect(decryptSecret(encryptSecret(apiKey))).toBe(apiKey);
     expect(emailitApiKeySchema.safeParse({ apiKey }).success).toBe(true);
     expect(emailitApiKeySchema.safeParse({ apiKey: ' ' }).success).toBe(false);
-  });
-
-  // Recovery-code generation removed with MFA.
-
-  it('treats every authenticated user as unrestricted in the assessment build', () => {
-    const user = { memberships: [{ active: true, role: { slug: 'support-worker' }, serviceIds: '["svc-a"]', propertyIds: '["prop-a"]' }, { active: false, role: { slug: 'safeguarding-lead' }, serviceIds: '["svc-b"]', propertyIds: '[]' }] } as never;
-    expect(getScopedIds(user, 'serviceIds')).toEqual([]);
-    expect(getScopedIds(user, 'propertyIds')).toEqual([]);
-    expect(canViewRestricted(user)).toBe(true);
-    expect(hasScopedAccess(user.memberships, 'serviceIds', 'svc-a')).toBe(true);
   });
 
   it('keeps finance payloads in integer minor units and rejects overbroad values', () => {
@@ -89,13 +76,9 @@ describe('protected data validation', () => {
     if (update.success) expect(update.data.active).toBe(false);
   });
 
-  it('validates referral assignment and respects service scope', () => {
+  it('validates referral assignment payloads', () => {
     expect(referralAssignmentSchema.safeParse({ assignedToId: 'user-1' }).success).toBe(true);
     expect(referralAssignmentSchema.safeParse({ assignedToId: '' }).success).toBe(false);
-    const scoped = [{ active: true, serviceIds: '["svc-a"]', propertyIds: '[]' }];
-    expect(hasScopedAccess(scoped, 'serviceIds', 'svc-a')).toBe(true);
-    expect(hasScopedAccess(scoped, 'serviceIds', 'svc-b')).toBe(true);
-    expect(hasScopedAccess([{ active: true, serviceIds: '[]', propertyIds: '[]' }], 'serviceIds', 'svc-b')).toBe(true);
   });
 
   it('validates public settings and publishable content payloads', () => {

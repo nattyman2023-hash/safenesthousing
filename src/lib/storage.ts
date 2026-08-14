@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { dirname, extname, join, relative, resolve, sep } from 'node:path';
+import { dirname, extname, relative, resolve, sep } from 'node:path';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 export { storageAdapterStatus } from './storage-status';
 
@@ -16,8 +16,10 @@ export type MalwareScanStatus = 'CLEAN' | 'SKIPPED';
 
 export function privateStorageRoot() {
   if ((process.env.STORAGE_PROVIDER ?? 'local') !== 'local') throw new Error('STORAGE_PROVIDER_UNSUPPORTED');
-  const root = resolve(/* turbopackIgnore: true */ process.env.PRIVATE_STORAGE_PATH ?? join(/* turbopackIgnore: true */ process.cwd(), 'storage', 'private'));
-  const publicRoot = resolve(/* turbopackIgnore: true */ process.cwd(), 'public');
+  const root = process.env.PRIVATE_STORAGE_PATH
+    ? resolve(/*turbopackIgnore: true*/ process.env.PRIVATE_STORAGE_PATH)
+    : resolve(/*turbopackIgnore: true*/ process.cwd(), 'storage', 'private');
+  const publicRoot = resolve(/*turbopackIgnore: true*/ process.cwd(), 'public');
   if (root === publicRoot || root.startsWith(`${publicRoot}${sep}`)) throw new Error('PRIVATE_STORAGE_PATH must be outside the public web root.');
   return root;
 }
@@ -106,7 +108,7 @@ export async function scanDocument(bytes: Buffer, input: { displayName: string; 
 
 function safeStorageTarget(storageKey: string) {
   const root = privateStorageRoot();
-  const target = resolve(/* turbopackIgnore: true */ root, storageKey);
+  const target = resolve(/*turbopackIgnore: true*/ root, storageKey);
   const withinRoot = target !== root && relative(root, target) && !relative(root, target).startsWith(`..${sep}`) && !relative(root, target).includes(`${sep}..${sep}`);
   if (!withinRoot) throw new Error('Invalid storage key.');
   return target;

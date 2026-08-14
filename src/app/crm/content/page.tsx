@@ -1,13 +1,11 @@
 import { db } from '@/lib/db';
-import { getCurrentUser, hasPermission } from '@/lib/auth';
-import { CrmPageHeader, EmptyState, StatusBadge } from '@/components/CrmUI';
+import { requireUser } from '@/lib/auth';
+import { CrmPageHeader, StatusBadge } from '@/components/CrmUI';
 import { NewsContentForm } from '@/components/NewsContentForm';
 import { ServiceContentForm } from '@/components/ServiceContentForm';
 
 export default async function ContentPage() {
-  const user = await getCurrentUser();
-  const canWrite = await hasPermission(user, 'content.write');
-  if (!user || !canWrite) return <div className="crm-page"><CrmPageHeader eyebrow="Public content" title="Content administration" intro="Edit the public services and news library with publish controls." /><EmptyState title="Content administration access required" message="Ask an administrator to grant content.write access to this area." /></div>;
+  const user = await requireUser();
   const [services, posts] = await Promise.all([
     db.service.findMany({ where: { organisationId: user.organisationId }, orderBy: { displayOrder: 'asc' } }).catch(() => []),
     db.newsPost.findMany({ where: { organisationId: user.organisationId }, include: { category: { select: { name: true } } }, orderBy: { createdAt: 'desc' } }).catch(() => [])

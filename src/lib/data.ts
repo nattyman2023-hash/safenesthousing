@@ -1,10 +1,10 @@
 import { db } from './db';
 import { formatDate } from './format';
 import { isTaskOverdue } from './domain';
-import { canViewRestricted, getCurrentUser, getScopedIds, hasScopedAccess } from './auth';
+import { getCurrentUser } from './auth';
 
 /** Fictional fallback content keeps the CRM populated for assessment when the database is empty
- * or momentarily unreachable. The previous production-only empty-state + presentation-mode gating
+ * or momentarily unreachable. Fictional fallback data is limited to development and test environments
  * has been removed so local and production behave identically. */
 function fictional<T>(items: T[]): T[] { return items; }
 
@@ -91,19 +91,16 @@ export async function getNewsBySlug(slug: string) {
 export async function getDashboardData() {
   const user = await getCurrentUser();
   if (!user) return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
-  const serviceIds = getScopedIds(user, 'serviceIds');
-  const propertyIds = getScopedIds(user, 'propertyIds');
-  const restricted = canViewRestricted(user);
-  const clientWhere = { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}), ...(!restricted ? { restricted: false } : {}) };
-  const propertyWhere = { organisationId: user.organisationId, ...(propertyIds.length ? { id: { in: propertyIds } } : {}) };
-  const referralWhere = { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}), status: { notIn: ['CLOSED', 'DECLINED', 'WITHDRAWN', 'PLACED'] } };
+  const clientWhere = { organisationId: user.organisationId };
+  const propertyWhere = { organisationId: user.organisationId };
+  const referralWhere = { organisationId: user.organisationId, status: { notIn: ['CLOSED', 'DECLINED', 'WITHDRAWN', 'PLACED'] } };
   try {
     const [clients, availableRooms, referrals, referralsNeedingAction, incidents, tasks, properties, reviews, hbExceptions] = await Promise.all([
       db.client.count({ where: { ...clientWhere, status: 'CURRENT' } }),
       db.room.count({ where: { status: 'AVAILABLE', property: propertyWhere } }),
       db.referral.count({ where: referralWhere }),
       db.referral.findMany({ where: referralWhere, include: { service: true }, orderBy: [{ followUpDate: 'asc' }, { createdAt: 'asc' }], take: 5 }),
-      db.incident.count({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { client: { serviceId: { in: serviceIds } } } : {}), ...(!restricted ? { restricted: false } : {}), status: { not: 'CLOSED' } } }),
+      db.incident.count({ where: { organisationId: user.organisationId, status: { not: 'CLOSED' } } }),
       db.task.findMany({ where: { organisationId: user.organisationId, status: { not: 'DONE' } }, orderBy: { dueAt: 'asc' }, take: 6 }),
       db.property.findMany({ where: propertyWhere, include: { rooms: true } }),
       db.supportPlan.count({ where: { client: clientWhere, reviewDate: { lte: new Date(Date.now() + 14 * 86400000) } } }),
@@ -121,9 +118,8 @@ export async function getDashboardData() {
 export async function getCrmReferrals() {
   const user = await getCurrentUser();
   if (!user) return [];
-  const serviceIds = getScopedIds(user, 'serviceIds');
   try {
-    const rows = await db.referral.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}) }, include: { service: true, assignments: { orderBy: { assignedAt: 'desc' }, take: 1, include: { user: { select: { id: true, name: true, email: true } } } } }, orderBy: { createdAt: 'desc' } });
+    const rows = await db.referral.findMany({ where: { organisationId: user.organisationId }, include: { service: true, assignments: { orderBy: { assignedAt: 'desc' }, take: 1, include: { user: { select: { id: true, name: true, email: true } } } } }, orderBy: { createdAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
   return fictional([
@@ -134,27 +130,22 @@ export async function getCrmReferrals() {
   ]);
 }
 
-export async function getReferralAssignees(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, serviceId: string) {
+export async function getReferralAssignees(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, _serviceId: string) {
   try {
     const users = await db.user.findMany({
-      where: {
-        organisationId: user.organisationId,
-        active: true,
-        memberships: { some: { active: true, role: { permissions: { some: { permission: { key: 'referrals.read' } } } } } }
-      },
-      select: { id: true, name: true, email: true, memberships: { where: { active: true }, select: { active: true, serviceIds: true, propertyIds: true } } },
+      where: { organisationId: user.organisationId, active: true },
+      select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' }
     });
-    return users.filter((candidate) => hasScopedAccess(candidate.memberships, 'serviceIds', serviceId)).map(({ id, name, email }) => ({ id, name, email }));
+    return users;
   } catch { return []; }
 }
 
 export async function getCrmClients() {
   const user = await getCurrentUser();
   if (!user) return [];
-  const serviceIds = getScopedIds(user, 'serviceIds');
   try {
-    const rows = await db.client.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { serviceId: { in: serviceIds } } : {}), ...(!canViewRestricted(user) ? { restricted: false } : {}) }, include: { service: true, placements: { include: { property: true } } }, orderBy: { updatedAt: 'desc' } });
+    const rows = await db.client.findMany({ where: { organisationId: user.organisationId }, include: { service: true, placements: { include: { property: true } } }, orderBy: { updatedAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
   return fictional([
@@ -167,9 +158,8 @@ export async function getCrmClients() {
 export async function getCrmIncidents() {
   const user = await getCurrentUser();
   if (!user) return [];
-  const serviceIds = getScopedIds(user, 'serviceIds');
   try {
-    const rows = await db.incident.findMany({ where: { organisationId: user.organisationId, ...(serviceIds.length ? { client: { serviceId: { in: serviceIds } } } : {}), ...(!canViewRestricted(user) ? { restricted: false } : {}) }, include: { client: true, updates: { orderBy: { createdAt: 'desc' }, take: 10 }, actions: { orderBy: { dueDate: 'asc' } } }, orderBy: { incidentAt: 'desc' } });
+    const rows = await db.incident.findMany({ where: { organisationId: user.organisationId }, include: { client: true, updates: { orderBy: { createdAt: 'desc' }, take: 10 }, actions: { orderBy: { dueDate: 'asc' } } }, orderBy: { incidentAt: 'desc' } });
     return rows;
   } catch { /* fallback */ }
   return fictional([

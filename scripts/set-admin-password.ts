@@ -3,8 +3,6 @@ import { audit } from '../src/lib/audit';
 import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
 import { hashPassword } from '../src/lib/auth';
 
-const ADMIN_ROLES = new Set(['super-administrator', 'organisation-administrator']);
-
 function readArg(flag: string, fallback?: string) {
   const prefix = `--${flag}=`;
   const value = process.argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
@@ -30,14 +28,14 @@ async function main() {
     return;
   }
 
-  const user = await db.user.findUnique({ where: { email }, include: { memberships: { include: { role: true } } } });
+  const user = await db.user.findUnique({ where: { email } });
   if (!user) {
     console.error(`No user exists with email ${email}.`);
     process.exitCode = 1;
     return;
   }
-  if (!user.active || !user.memberships.some((membership) => membership.active && ADMIN_ROLES.has(membership.role.slug))) {
-    console.error(`User ${email} is not an active administrator; no changes were made.`);
+  if (!user.active) {
+    console.error(`User ${email} is inactive; no changes were made.`);
     process.exitCode = 1;
     return;
   }

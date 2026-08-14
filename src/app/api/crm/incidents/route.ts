@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
-import { canViewRestricted, requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { incidentCreateSchema } from '@/lib/crm-validation';
 
 function makeReference() {
@@ -14,7 +14,7 @@ function makeReference() {
 
 export async function POST(request: Request) {
   try {
-    const user = await requirePermission('incidents.write');
+    const user = await requireUser();
     const parsed = incidentCreateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the incident details.' }, { status: 400 });
     const incidentAt = new Date(parsed.data.incidentAt);
@@ -22,7 +22,6 @@ export async function POST(request: Request) {
     if (parsed.data.clientId) {
       const client = await db.client.findFirst({ where: { id: parsed.data.clientId, organisationId: user.organisationId } });
       if (!client) return NextResponse.json({ error: 'Choose a client from your organisation.' }, { status: 400 });
-      if (client.restricted && !canViewRestricted(user)) return NextResponse.json({ error: 'You are not authorised to record an incident for this restricted client.' }, { status: 403 });
     }
     const incident = await db.incident.create({
       data: {
@@ -44,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: incident.id, reference: incident.reference });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to record the incident.' : message }, { status });
   }
 }

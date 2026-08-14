@@ -1,13 +1,25 @@
 # Architecture
 
-Safe Nest is a server-rendered Next.js App Router application with three separate route surfaces:
+Safe Nest is a server-rendered Next.js App Router application with three route surfaces:
 
 - Public website: editorial content, safe property projections, referrals, contact, news, and policy pages.
-- Staff authentication: login, password reset entry point, secure session cookie, and noindex metadata.
-- CRM: a separate shell with operational navigation, server-side session checks, role-aware domain services, tables, metric cards, pipeline views, profiles, and governance screens.
+- Staff authentication: login, password-reset entry point, secure session cookie, and noindex metadata.
+- CRM: a separate operational shell with server-side session checks, tables, metric cards, pipeline views, profiles, and governance screens.
 
-Prisma provides the relational data layer. The repository's current provider and generated migration target SQLite, which is suitable for a protected single-instance development or small VPS deployment with tested backups. A PostgreSQL production variant requires changing the provider and generating a PostgreSQL migration before release. API routes use Zod for input validation, bounded request throttling, provider-independent email delivery, and append-only audit writes. Rate limiting uses the local memory adapter for one instance or a token-authenticated HTTP adapter for shared deployments; the HTTP adapter sends only a hashed key and fails closed if unavailable. Production requires a configured transactional email provider (Emailit or SMTP), and missing credentials never fall back to logging. The health route checks both database connectivity and production configuration readiness and reports non-secret adapter status.
+Prisma provides the relational data layer. The current provider and migration target SQLite, suitable
+for a protected single-instance development or small VPS deployment with tested backups. A PostgreSQL
+variant requires changing the provider and generating a PostgreSQL migration before release. API routes
+use Zod validation, bounded request throttling, provider-independent email, and append-only audit writes.
 
-Sensitive public boundaries are enforced in `src/lib/data.ts`: public property queries select only safe fields. Full addresses, room labels, resident names, operational notes, restricted content, and document keys are not part of public projections. Private document uploads are scanned before write, carry a SHA-256 integrity hash, and are read only after organisation/role checks. Documents can use a local private filesystem or S3-compatible object storage; object writes set a content type and server-side AES-256 encryption, and no public URLs are generated.
+Public queries select only safe fields. Full addresses, room labels, resident names, operational notes,
+restricted content, and document keys are never serialized into public responses. Private document
+uploads are scanned before write, carry a SHA-256 integrity hash, and are read only through authenticated
+organisation-scoped routes. Documents use a local private filesystem or S3-compatible object storage;
+no public URLs are generated.
 
-Authentication uses random session tokens stored as SHA-256 hashes in `UserSession` and presented only in an httpOnly, same-site cookie. Passwords use bcrypt. The assessment build uses a single access state — authenticated = complete, unrestricted access to every CRM module and API; MFA, RBAC permission gates, role checks, service/property scoping and restricted-record gating have been removed from the active flow (the `MfaMethod`/`MfaRecoveryCode`/`Role`/`Permission`/`RolePermission` tables remain in the schema for a future redesign). Unconfigured email and malware scanning degrade to logged no-ops so forms and uploads always complete. Every protected CRM route resolves the current session server-side; client-side navigation is not the security boundary. MFA, RBAC, real secrets, HTTPS, persistent storage, backups and email/malware integrations are deferred to Phase 2 (before real resident data).
+Authentication uses random session tokens stored as SHA-256 hashes in `UserSession` and presented only
+in an httpOnly, same-site cookie. Passwords use bcrypt. The active access model is one state:
+authenticated means complete, unrestricted access to every CRM module and API. Legacy membership, role,
+permission, scope, restricted-assignment, and MFA tables remain in the schema for database compatibility
+but are not runtime authorization dependencies. Every protected CRM route resolves the current session
+server-side; client-side navigation is not the security boundary.

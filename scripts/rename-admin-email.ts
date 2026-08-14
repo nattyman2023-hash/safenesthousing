@@ -2,8 +2,6 @@ import { db } from '../src/lib/db';
 import { audit } from '../src/lib/audit';
 import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
 
-const ADMIN_ROLES = new Set(['super-administrator', 'organisation-administrator']);
-
 function readArg(flag: string, fallback?: string) {
   const prefix = `--${flag}=`;
   const value = process.argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
@@ -40,7 +38,7 @@ async function main() {
   }
 
   const [source, destination] = await Promise.all([
-    db.user.findUnique({ where: { email: from }, include: { memberships: { include: { role: true } } } }),
+    db.user.findUnique({ where: { email: from } }),
     db.user.findUnique({ where: { email: to }, select: { id: true } })
   ]);
 
@@ -54,8 +52,8 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  if (!source.active || !source.memberships.some((membership) => membership.active && ADMIN_ROLES.has(membership.role.slug))) {
-    console.error(`User ${from} is not an active administrator; no changes were made.`);
+  if (!source.active) {
+    console.error(`User ${from} is inactive; no changes were made.`);
     process.exitCode = 1;
     return;
   }
@@ -64,7 +62,7 @@ async function main() {
   await audit({ organisationId: source.organisationId, actorId: source.id, action: 'ADMIN_EMAIL_RENAMED', resourceType: 'User', resourceId: source.id, after: { from, to } });
 
   console.log(`Administrator email changed from ${from} to ${to}.`);
-  console.log('The existing password, MFA methods, roles, and audit history were retained.');
+  console.log('The existing password, role labels, sessions, and audit history were retained.');
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => { await db.$disconnect(); });

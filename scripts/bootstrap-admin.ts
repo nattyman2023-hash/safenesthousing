@@ -5,7 +5,7 @@ import { audit } from '../src/lib/audit';
 import { config } from '../src/lib/env';
 import { sendSafeEmail, mailAdapterStatusWithStoredSecrets } from '../src/lib/mail';
 import { userInviteSchema } from '../src/lib/crm-validation';
-import { ensureRbac } from '../prisma/rbac-definitions';
+import { ensureRoleLabels } from '../prisma/rbac-definitions';
 import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
 
 /**
@@ -13,7 +13,7 @@ import { DEFAULT_ADMIN_EMAIL } from '../src/lib/admin';
  *
  * Unlike `npm run db:seed` (which must never run in production because it also inserts
  * fictional demo clients, referrals, and incidents), this script only creates the structural
- * RBAC scaffolding plus exactly one real administrator, using the same invite pattern as
+ * organisation and compatibility role label plus exactly one real administrator, using the same invite pattern as
  * POST /api/crm/users: an unusable random password hash and a one-time, 30-minute password-reset
  * link. Run once per environment. Re-running with the same email refuses rather than silently
  * resetting an existing account.
@@ -90,10 +90,10 @@ async function main() {
     create: { name: orgName, slug: orgSlug }
   });
 
-  const { roles } = await ensureRbac(db, organisation.id);
+  const roles = await ensureRoleLabels(db, organisation.id);
   const roleId = roles.get(role);
   if (!roleId) {
-    console.error(`Role "${role}" was not created by the RBAC scaffolding — this indicates a bug in prisma/rbac-definitions.ts.`);
+    console.error(`Role "${role}" was not created by the compatibility role-label setup.`);
     process.exitCode = 1;
     return;
   }
@@ -101,7 +101,7 @@ async function main() {
   const temporaryHash = await bcrypt.hash(randomBytes(32).toString('hex'), 12);
   const rawToken = randomBytes(32).toString('hex');
   const user = await db.$transaction(async (tx) => {
-    const created = await tx.user.create({ data: { organisationId: organisation.id, email, name: parsed.data.name, jobTitle: parsed.data.jobTitle, passwordHash: temporaryHash, mfaRequired: true } });
+    const created = await tx.user.create({ data: { organisationId: organisation.id, email, name: parsed.data.name, jobTitle: parsed.data.jobTitle, passwordHash: temporaryHash } });
     await tx.membership.create({ data: { organisationId: organisation.id, userId: created.id, roleId } });
     await tx.passwordResetToken.create({ data: { userId: created.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + 30 * 60_000) } });
     return created;

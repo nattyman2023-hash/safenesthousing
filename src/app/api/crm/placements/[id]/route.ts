@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { audit } from '@/lib/audit';
-import { canViewRestricted, requirePermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { placementStatusSchema } from '@/lib/crm-validation';
 import { hasOccupancyOverlap } from '@/lib/domain';
 import { db } from '@/lib/db';
@@ -8,12 +8,11 @@ import { db } from '@/lib/db';
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const user = await requirePermission('placements.write');
+    const user = await requireUser();
     const parsed = placementStatusSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Choose a valid placement status.' }, { status: 400 });
     const placement = await db.placement.findFirst({ where: { id: params.id, client: { organisationId: user.organisationId } }, include: { client: true, occupancyRecords: true } });
     if (!placement) return NextResponse.json({ error: 'Placement not found.' }, { status: 404 });
-    if (placement.client.restricted && !canViewRestricted(user)) return NextResponse.json({ error: 'You are not authorised to update this restricted placement.' }, { status: 403 });
     if (parsed.data.status === 'ACTIVE' && placement.status === 'ACTIVE') return NextResponse.json({ id: placement.id, status: placement.status });
     const occupancy = placement.occupancyRecords[0];
     if (!occupancy) return NextResponse.json({ error: 'Occupancy record not found.' }, { status: 409 });
@@ -38,7 +37,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     return NextResponse.json({ id: updated.id, status: updated.status, endDate: updated.endDate });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    const status = message === 'AUTH_REQUIRED' ? 401 : 500;
     return NextResponse.json({ error: status === 500 ? 'Unable to update the placement.' : message }, { status });
   }
 }

@@ -1,14 +1,12 @@
-import { CrmPageHeader, EmptyState, StatusBadge, TableCard } from '@/components/CrmUI';
+import { CrmPageHeader, StatusBadge, TableCard } from '@/components/CrmUI';
 import { RetentionReviewControl, RetentionRulePanel, SubjectRequestPanel } from '@/components/GovernancePanel';
-import { getCurrentUser, hasPermission } from '@/lib/auth';
+import { requireUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 import { parseRetentionReviewSummary } from '@/lib/retention-review';
 
 export default async function GovernancePage() {
-  const user = await getCurrentUser();
-  const canManage = await hasPermission(user, 'governance.manage');
-  if (!user || !canManage) return <div className="crm-page"><CrmPageHeader eyebrow="Data protection" title="Governance" intro="Retention and data-subject request controls are restricted to authorised reviewers." /><EmptyState title="Governance access required" message="Ask an organisation administrator to assign the governance management permission." /></div>;
+  const user = await requireUser();
   const [rules, requests, reviewRuns] = await Promise.all([
     db.dataRetentionRule.findMany({ where: { organisationId: user.organisationId }, orderBy: { resourceType: 'asc' } }).catch(() => []),
     db.dataSubjectRequest.findMany({ where: { organisationId: user.organisationId }, orderBy: [{ legalHold: 'desc' }, { createdAt: 'desc' }] }).catch(() => []),
