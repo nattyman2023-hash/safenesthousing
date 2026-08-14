@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { ensureRoleLabels } from './rbac-definitions';
 
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to seed fictional development data while NODE_ENV=production. Use bootstrap:admin for the first real administrator.');
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 async function main() {

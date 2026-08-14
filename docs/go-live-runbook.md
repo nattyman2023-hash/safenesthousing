@@ -10,9 +10,9 @@ for database compatibility and are not consulted by the active request path.
 Run locally:
 
 ```bash
-npm install && npm run db:migrate && npm run db:seed && npm run dev
+npm ci && npm run db:migrate && npm run db:seed && npm run dev
 # or the production build:
-npm install && npm run db:migrate && npm run build && npm run start
+npm ci && npm run db:migrate && npm run build && npm run start
 ```
 
 Sign in at `/staff/login` with the local seeded account. There is no second-factor challenge or

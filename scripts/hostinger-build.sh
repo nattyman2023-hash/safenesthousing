@@ -3,10 +3,10 @@
 #
 # Run this after every "Deploy from Git" pull (set it as the Node.js app's
 # post-deploy/build command in hPanel). It installs dependencies, regenerates
-# the Prisma client, builds the Next.js production bundle, and applies any new
-# database migrations to the persistent production database.
+# the Prisma client, applies any new database migrations to the persistent
+# production database, and builds the Next.js production bundle.
 #
-# It does NOT seed data. For a public PREVIEW run `npm run db:seed` once
+# It does NOT seed data. For a separate non-production PREVIEW run `npm run db:seed` once
 # manually after the first deploy; for a real go-live run
 # `npm run bootstrap:admin -- --name="Full Name"` instead — never seed production.
 set -euo pipefail
@@ -20,10 +20,16 @@ npm ci
 echo "==> Generating Prisma client"
 npx prisma generate
 
-echo "==> Building Next.js production bundle"
-npm run build
+echo "==> Checking production configuration"
+npm run check:production-config
 
 echo "==> Applying database migrations"
 npm run db:migrate:deploy
+
+echo "==> Removing stale Next.js build output"
+rm -rf .next
+
+echo "==> Building Next.js production bundle"
+npm run build
 
 echo "==> Post-deploy build complete. Restart the Node app (npm run start)."

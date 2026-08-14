@@ -23,3 +23,22 @@ test('staff login exposes the password reset entry point', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Reset your password' })).toBeVisible();
   await expect(page.getByLabel('Work email')).toBeVisible();
 });
+
+test('staff login keeps normal HTML separate from explicit RSC responses', async ({ request }) => {
+  const normal = await request.get('/staff/login');
+  expect(normal.status()).toBe(200);
+  expect(normal.headers()['content-type']).toContain('text/html');
+  expect(normal.headers()['cache-control']).toContain('no-cache');
+  expect(normal.headers()['cache-control']).not.toContain('s-maxage');
+  expect(normal.headers()['vary']).toContain('rsc');
+  expect(await normal.text()).toMatch(/^<!DOCTYPE html>/);
+
+  const rsc = await request.get('/staff/login?_rsc=test', { headers: { RSC: '1' } });
+  expect(rsc.status()).toBe(200);
+  expect(rsc.headers()['content-type']).toContain('text/x-component');
+  expect(rsc.headers()['vary']).toContain('rsc');
+  expect(await rsc.text()).toMatch(/^\d+:/);
+
+  const queryOnly = await request.get('/staff/login?_rsc=test');
+  expect(queryOnly.headers()['content-type']).toContain('text/html');
+});

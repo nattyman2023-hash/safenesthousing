@@ -8,6 +8,16 @@ const databaseUrl = process.env.DATABASE_URL ?? 'file:./dev.db';
 const migrationRoot = resolve('prisma', 'migrations');
 const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
+function looksLikeProductionDatabase(url) {
+  const normalized = decodeURIComponent(url).toLowerCase();
+  return /(?:^|[\\/:._-])(prod|production)(?=$|[\\/:._?#-])/.test(normalized);
+}
+
+if (process.env.NODE_ENV !== 'production' && looksLikeProductionDatabase(databaseUrl)) {
+  console.error('Refusing to migrate a database URL that looks like a production database outside NODE_ENV=production.');
+  process.exit(1);
+}
+
 function quoteArg(value) {
   return `"${value.replace(/"/g, '\\"')}"`;
 }
@@ -20,7 +30,7 @@ function executeMigration(file) {
   // args array throws EINVAL on Windows, particularly with a path containing spaces such as this
   // project's own directory, and shell:true alone does not quote array args for cmd.exe.
   const args = ['prisma', 'db', 'execute', '--file', quoteArg(file), '--schema', quoteArg(resolve('prisma', 'schema.prisma'))];
-  const result = spawnSync(`${command} ${args.join(' ')}`, { stdio: 'inherit', shell: true, env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: process.env.NODE_TLS_REJECT_UNAUTHORIZED ?? '0' } });
+  const result = spawnSync(`${command} ${args.join(' ')}`, { stdio: 'inherit', shell: true, env: process.env });
   if (result.error) { console.error(`Failed to run prisma db execute for ${file}:`, result.error); process.exit(1); }
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

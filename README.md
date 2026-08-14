@@ -10,7 +10,7 @@ Requirements: Node 20.11+ and npm.
 
 ```bash
 copy .env.example .env
-npm install
+npm ci
 npm run db:migrate
 npm run db:seed
 npm run dev
