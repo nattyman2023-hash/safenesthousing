@@ -35,7 +35,6 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts",
     "prisma/**/*.ts",
-    "vitest.config.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
