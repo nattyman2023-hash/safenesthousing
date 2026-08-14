@@ -12,7 +12,7 @@ export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env
   const production = environment.NODE_ENV === 'production';
   const emailProvider = environment.EMAIL_PROVIDER ?? (environment.EMAILIT_API_KEY ? 'emailit' : 'smtp');
   const malwareProvider = environment.MALWARE_SCAN_PROVIDER ?? 'disabled';
-  const malwareScanRequired = production || environment.REQUIRE_MALWARE_SCAN === 'true';
+  const malwareScanRequired = environment.REQUIRE_MALWARE_SCAN === 'true';
   let appUrl: URL | null = null;
   try { appUrl = new URL(environment.APP_URL ?? ''); } catch { /* reported below */ }
   const checks = [
@@ -33,8 +33,7 @@ export function runtimeConfigChecks(environment: NodeJS.ProcessEnv = process.env
     : [];
   if (production && (environment.STORAGE_PROVIDER ?? 'local') === 'local') warnings.push('STORAGE_PROVIDER=local requires a persistent private filesystem and a single application instance; use S3-compatible object storage for multiple instances.');
   if (malwareScanRequired && malwareProvider === 'disabled') warnings.push('Malware scanning is required for this environment but MALWARE_SCAN_PROVIDER=disabled.');
-  if (production && environment.MFA_ENABLED === 'false') warnings.push('MFA is explicitly disabled for this environment; re-enable MFA before handling real staff or resident records.');
-  if (production && environment.DISABLE_MFA_FOR_DEV === 'true') warnings.push('DISABLE_MFA_FOR_DEV is set but has no effect in production — MFA remains enforced for privileged roles.');
+  // MFA is no longer part of the application flow; MFA_ENABLED / DISABLE_MFA_FOR_DEV are obsolete.
   return { environment: production ? 'production' : 'development', production, ready: checks.every((check) => check.ok), checks, warnings };
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { audit } from '@/lib/audit';
-import { hasRole, requirePermission, roleRequiresMfa } from '@/lib/auth';
+import { hasRole, requirePermission } from '@/lib/auth';
 import { userAccessUpdateSchema } from '@/lib/crm-validation';
 import { db } from '@/lib/db';
 
@@ -21,14 +21,13 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       if (adminCount <= 1) return NextResponse.json({ error: 'Keep at least one active organisation administrator.' }, { status: 400 });
     }
     const updated = await db.$transaction(async (tx) => {
-      const user = await tx.user.update({ where: { id: current.id }, data: { active: parsed.data.active, mfaRequired: roleRequiresMfa(role.slug) ? true : undefined } });
+      const user = await tx.user.update({ where: { id: current.id }, data: { active: parsed.data.active } });
       await tx.membership.updateMany({ where: { organisationId: actor.organisationId, userId: current.id }, data: { active: false } });
       if (parsed.data.active) {
         const membership = await tx.membership.findFirst({ where: { organisationId: actor.organisationId, userId: current.id, roleId: role.id } });
         if (membership) await tx.membership.update({ where: { id: membership.id }, data: { active: true } });
         else await tx.membership.create({ data: { organisationId: actor.organisationId, userId: current.id, roleId: role.id } });
       } else await tx.userSession.updateMany({ where: { userId: current.id, revokedAt: null }, data: { revokedAt: new Date() } });
-      if (parsed.data.active && roleRequiresMfa(role.slug) && !current.mfaRequired) await tx.userSession.updateMany({ where: { userId: current.id, revokedAt: null }, data: { revokedAt: new Date() } });
       return user;
     });
     await audit({ organisationId: actor.organisationId, actorId: actor.id, action: 'USER_ACCESS_UPDATED', resourceType: 'User', resourceId: updated.id, before: { active: current.active, roles: current.memberships.map((membership) => membership.role.slug) }, after: { active: updated.active, role: parsed.data.active ? role.slug : null } });

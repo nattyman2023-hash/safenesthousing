@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import { config } from './env';
 import { getStoredEmailitApiKey, hasAnyStoredEmailitApiKey, hasStoredEmailitApiKey } from './email-settings';
-import { presentationModeEnabled } from './presentation';
 
 function emailProvider(environment: NodeJS.ProcessEnv = process.env) {
   return environment.EMAIL_PROVIDER ?? (environment.EMAILIT_API_KEY ? 'emailit' : 'smtp');
@@ -33,8 +32,7 @@ export async function sendSafeEmail(input: { organisationId?: string; to: string
   if (provider === 'emailit') {
     const apiKey = (input.organisationId ? await getStoredEmailitApiKey(input.organisationId) : undefined) ?? process.env.EMAILIT_API_KEY;
     if (!apiKey) {
-      if (process.env.NODE_ENV === 'production' && !presentationModeEnabled()) throw new Error('EMAILIT_NOT_CONFIGURED');
-      console.info(`[safe-email:${presentationModeEnabled() ? 'presentation' : 'development'}] ${input.subject} -> ${input.to}`);
+      console.info(`[safe-email] ${input.subject} -> ${input.to}`);
       return { sent: false };
     }
     const response = await fetch(process.env.EMAILIT_API_URL ?? 'https://api.emailit.com/v2/emails', {
@@ -48,8 +46,7 @@ export async function sendSafeEmail(input: { organisationId?: string; to: string
   }
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } = process.env;
   if (!SMTP_HOST || !SMTP_PORT) {
-    if (process.env.NODE_ENV === 'production' && !presentationModeEnabled()) throw new Error('SMTP_NOT_CONFIGURED');
-    console.info(`[safe-email:${presentationModeEnabled() ? 'presentation' : 'development'}] ${input.subject} -> ${input.to}`);
+    console.info(`[safe-email] ${input.subject} -> ${input.to}`);
     return { sent: false };
   }
   const transport = nodemailer.createTransport({ host: SMTP_HOST, port: Number(SMTP_PORT), secure: Number(SMTP_PORT) === 465, auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASSWORD } : undefined });

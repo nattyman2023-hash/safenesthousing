@@ -16,7 +16,7 @@ export function LoginForm() {
     setError('');
     const response = await fetch('/api/auth/login', { method: 'POST', body: new FormData(event.currentTarget) });
     const result = await response.json();
-    if (response.ok) router.push(result.mfaRequired ? `/staff/mfa${result.mfaConfigured ? '' : '?setup=1'}` : '/crm/dashboard');
+    if (response.ok) router.push('/crm/dashboard');
     else { setError(result.error ?? 'Sign in failed.'); setBusy(false); }
   }
 

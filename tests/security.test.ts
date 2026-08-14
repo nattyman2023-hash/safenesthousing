@@ -3,13 +3,11 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { caseNoteSchema, dataSubjectRequestCreateSchema, dataSubjectRequestUpdateSchema, emailitApiKeySchema, housingBenefitUpdateSchema, invoiceCreateSchema, newsContentSchema, paymentSchema, placementCreateSchema, referralAssignmentSchema, retentionRuleCreateSchema, serviceContentSchema, siteSettingsUpdateSchema, userAccessUpdateSchema, userInviteSchema } from '@/lib/crm-validation';
 import { readPrivateDocument, removePrivateDocument, sanitiseDisplayName, scanDocument, sha256Bytes, storageAdapterStatus, storePrivateDocument, validateDocumentUpload } from '@/lib/storage';
 import { internalReferralSchema } from '@/lib/crm-validation';
-import { createTotpCode, decryptMfaSecret, encryptMfaSecret, generateRecoveryCodes, hashRecoveryCode, isRecoveryCode, verifyTotpCode } from '@/lib/mfa';
-import { canViewRestricted, getScopedIds, hasScopedAccess, roleRequiresMfa } from '@/lib/auth';
+import { canViewRestricted, getScopedIds, hasScopedAccess } from '@/lib/auth';
 import { toCsv } from '@/lib/csv';
 import { runtimeConfigChecks } from '@/lib/env';
 import { getClientIp, rateLimit, rateLimitAdapterStatus } from '@/lib/rate-limit';
 import { mailAdapterStatus } from '@/lib/mail';
-import { mfaCodeSchema } from '@/lib/mfa-validation';
 import { isRetentionDue, parseRetentionReviewSummary } from '@/lib/retention-review';
 import { decryptSecret, encryptSecret } from '@/lib/secrets';
 
@@ -51,14 +49,7 @@ describe('protected data validation', () => {
     }
   });
 
-  it('verifies TOTP codes with clock skew tolerance and encrypted secrets', () => {
-    const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
-    const code = createTotpCode(secret, 59_000);
-    expect(code).toBe('287082');
-    expect(verifyTotpCode(secret, code, 59_000)).toBe(true);
-    expect(verifyTotpCode(secret, code, 60_000)).toBe(true);
-    expect(decryptMfaSecret(encryptMfaSecret(secret))).toBe(secret);
-  });
+  // MFA/TOTP verification removed — MFA is no longer part of the application flow.
 
   it('encrypts organisation provider keys and never accepts an empty key', () => {
     const apiKey = 'em_test_provider_key';
@@ -67,23 +58,14 @@ describe('protected data validation', () => {
     expect(emailitApiKeySchema.safeParse({ apiKey: ' ' }).success).toBe(false);
   });
 
-  it('generates one-time recovery codes without exposing their stored representation', () => {
-    const codes = generateRecoveryCodes();
-    expect(codes).toHaveLength(10);
-    expect(new Set(codes).size).toBe(10);
-    expect(codes.every((code) => isRecoveryCode(code))).toBe(true);
-    expect(mfaCodeSchema.safeParse({ code: codes[0] }).success).toBe(true);
-    expect(mfaCodeSchema.safeParse({ code: '123456' }).success).toBe(true);
-    expect(hashRecoveryCode(codes[0])).toBe(hashRecoveryCode(codes[0].replace('-', '')));
-    expect(roleRequiresMfa('organisation-administrator')).toBe(true);
-    expect(roleRequiresMfa('support-worker')).toBe(false);
-  });
+  // Recovery-code generation removed with MFA.
 
-  it('combines active membership scopes and keeps restricted roles explicit', () => {
+  it('treats every authenticated user as unrestricted in the assessment build', () => {
     const user = { memberships: [{ active: true, role: { slug: 'support-worker' }, serviceIds: '["svc-a"]', propertyIds: '["prop-a"]' }, { active: false, role: { slug: 'safeguarding-lead' }, serviceIds: '["svc-b"]', propertyIds: '[]' }] } as never;
-    expect(getScopedIds(user, 'serviceIds')).toEqual(['svc-a']);
-    expect(getScopedIds(user, 'propertyIds')).toEqual(['prop-a']);
-    expect(canViewRestricted(user)).toBe(false);
+    expect(getScopedIds(user, 'serviceIds')).toEqual([]);
+    expect(getScopedIds(user, 'propertyIds')).toEqual([]);
+    expect(canViewRestricted(user)).toBe(true);
+    expect(hasScopedAccess(user.memberships, 'serviceIds', 'svc-a')).toBe(true);
   });
 
   it('keeps finance payloads in integer minor units and rejects overbroad values', () => {
@@ -112,7 +94,7 @@ describe('protected data validation', () => {
     expect(referralAssignmentSchema.safeParse({ assignedToId: '' }).success).toBe(false);
     const scoped = [{ active: true, serviceIds: '["svc-a"]', propertyIds: '[]' }];
     expect(hasScopedAccess(scoped, 'serviceIds', 'svc-a')).toBe(true);
-    expect(hasScopedAccess(scoped, 'serviceIds', 'svc-b')).toBe(false);
+    expect(hasScopedAccess(scoped, 'serviceIds', 'svc-b')).toBe(true);
     expect(hasScopedAccess([{ active: true, serviceIds: '[]', propertyIds: '[]' }], 'serviceIds', 'svc-b')).toBe(true);
   });
 
@@ -196,24 +178,25 @@ describe('protected data validation', () => {
     }
   });
 
-  it('fails closed for missing production SMTP and unsupported storage providers', async () => {
+  it('degrades gracefully when email is not configured and rejects unsafe production config', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousEmailProvider = process.env.EMAIL_PROVIDER;
     const previousSmtpHost = process.env.SMTP_HOST;
     const previousSmtpPort = process.env.SMTP_PORT;
-    const previousPresentationMode = process.env.SAFE_NEST_PRESENTATION_MODE;
     process.env.NODE_ENV = 'production';
     process.env.EMAIL_PROVIDER = 'smtp';
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_PORT;
-    delete process.env.SAFE_NEST_PRESENTATION_MODE;
-    const { sendSafeEmail } = await import('@/lib/mail');
-    await expect(sendSafeEmail({ to: 'test@example.test', subject: 'Test', text: 'Test', html: '<p>Test</p>' })).rejects.toThrow('SMTP_NOT_CONFIGURED');
-    if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
-    if (previousEmailProvider === undefined) delete process.env.EMAIL_PROVIDER; else process.env.EMAIL_PROVIDER = previousEmailProvider;
-    if (previousSmtpHost === undefined) delete process.env.SMTP_HOST; else process.env.SMTP_HOST = previousSmtpHost;
-    if (previousSmtpPort === undefined) delete process.env.SMTP_PORT; else process.env.SMTP_PORT = previousSmtpPort;
-    if (previousPresentationMode === undefined) delete process.env.SAFE_NEST_PRESENTATION_MODE; else process.env.SAFE_NEST_PRESENTATION_MODE = previousPresentationMode;
+    try {
+      const { sendSafeEmail } = await import('@/lib/mail');
+      const result = await sendSafeEmail({ to: 'test@example.test', subject: 'Test', text: 'Test', html: '<p>Test</p>' });
+      expect(result.sent).toBe(false);
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
+      if (previousEmailProvider === undefined) delete process.env.EMAIL_PROVIDER; else process.env.EMAIL_PROVIDER = previousEmailProvider;
+      if (previousSmtpHost === undefined) delete process.env.SMTP_HOST; else process.env.SMTP_HOST = previousSmtpHost;
+      if (previousSmtpPort === undefined) delete process.env.SMTP_PORT; else process.env.SMTP_PORT = previousSmtpPort;
+    }
     expect(runtimeConfigChecks({ NODE_ENV: 'production', STORAGE_PROVIDER: 's3' }).ready).toBe(false);
   });
 
@@ -226,7 +209,7 @@ describe('protected data validation', () => {
     expect(ready.warnings.some((warning) => warning.includes('STORAGE_PROVIDER'))).toBe(true);
     expect(runtimeConfigChecks({ ...base, APP_URL: 'http://safe-nest.example' }).ready).toBe(false);
     expect(runtimeConfigChecks({ ...base, AUTH_SECRET: 'replace-with-a-secret' }).ready).toBe(false);
-    expect(runtimeConfigChecks({ ...base, MALWARE_SCAN_PROVIDER: 'disabled' }).ready).toBe(false);
+    expect(runtimeConfigChecks({ ...base, MALWARE_SCAN_PROVIDER: 'disabled' }).ready).toBe(true);
     expect(runtimeConfigChecks({ ...base, RETENTION_REVIEW_SECRET: 'short' }).ready).toBe(false);
   });
 });

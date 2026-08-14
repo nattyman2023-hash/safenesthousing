@@ -39,34 +39,31 @@ npm run build
 - `scripts/bootstrap-admin.ts` — creates the real RBAC scaffolding and exactly one real administrator for production (`npm run bootstrap:admin`).
 - `docs/` — architecture, data model, security, privacy, testing, deployment, and operations guidance.
 
-## Production-ready presentation build (Phase 1)
+## Access model (assessment build)
 
-The project is delivered in two phases (see [docs/go-live-runbook.md](docs/go-live-runbook.md)):
+The application uses a single, predictable authentication state: **authenticated = complete,
+unrestricted access** to every CRM module and API. MFA, RBAC permission gates, role checks,
+service/property scoping, restricted-record gating, and the previous presentation-mode/dev-bypass
+flags have all been removed from the active flow. Login (bcrypt password + a hashed httpOnly session
+cookie) is the only access boundary.
 
-- **Phase 1 (current)** is a complete, production-style application that looks and behaves exactly
-  like the finished product, using **fictional seed data only**. Real residents, confidential records
-  and service-user data are never entered in this phase.
-- **Phase 2** activates the remaining security controls (MFA, real secrets, HTTPS/domain, persistent
-  database and storage, backups, email and malware integrations, data-protection sign-off) before any
-  real data is entered.
-
-To present Phase 1 as a genuine production bundle that still carries the fictional data:
+Run it:
 
 ```bash
 npm install
 npm run db:migrate
 npm run db:seed
-# Environment for the presentation build (see `.env`):
-#   SAFE_NEST_PRESENTATION_MODE=true
-#   ENABLE_DEV_AUTH_BYPASS=false
-#   MFA_ENABLED=false
-npm run build
-npm run start
+npm run dev          # or: npm run build && npm run start
 ```
 
-Open the site and sign in as `admin@safenesthousing.co.uk` with password `ChangeMe!123`. Real login and
-role-based permissions are active (there is **no** sandbox bypass in a production build); MFA is held
-off until Phase 2.
+Open http://localhost:3000 and sign in at /staff/login as `admin@safenesthousing.co.uk` with password
+`ChangeMe!123`. There is no MFA challenge and no permission/role gate on any CRM page or API.
+
+Phase 2 (before real resident data) will re-introduce MFA, RBAC, real secrets, HTTPS/domain,
+persistent storage, backups, and email/malware integrations as a deliberate redesign — see
+[docs/go-live-runbook.md](docs/go-live-runbook.md). Fundamental engineering protections (input
+validation, ORM/SQL safety, password hashing, safe file paths, audit logging, append-only case
+notes, money-as-minor-units, tenant scoping) remain in force throughout.
 
 `SAFE_NEST_PRESENTATION_MODE=true` is safe for demo/UAT builds: it keeps fictional seed data visible
 if the database is momentarily unreachable and lets unconfigured email and malware scanning degrade to

@@ -10,7 +10,7 @@
 - `npm run db:seed` inserts fictional development data; it must never run automatically in production.
 - `npm run bootstrap:admin -- --email=... --name=...` creates the real RBAC scaffolding and exactly one real administrator for production, without any fictional data. See `scripts/bootstrap-admin.ts`.
 - `npm run build` creates the server-rendered production build.
-- `npm run test:e2e` runs the Playwright suite (public flow + full staff login/MFA/CRM workflows); it starts its own dev server against the local dev database.
+- `npm run test:e2e` runs the Playwright suite (public flow + full staff login/CRM workflows); it starts its own dev server against the local dev database.
 
 ## Safety boundaries
 

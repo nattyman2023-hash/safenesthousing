@@ -9,14 +9,14 @@ Hostinger's "Deploy from Git" only pulls the repository files — a Next.js app 
 1. **Node.js app (hPanel):** Node 20.11+, app root = the repository (where `package.json` lives).
 2. **Startup command:** `npm run start` (Next reads the `PORT` Hostinger assigns).
 3. **Post-deploy / build command:** `bash scripts/hostinger-build.sh`. This runs `npm ci && npx prisma generate && npm run build && npm run db:migrate:deploy` after every pull.
-4. **Environment variables:** import `.env.production.example` (or add manually). Set strong `AUTH_SECRET`, `FILE_SIGNING_SECRET`, `RETENTION_REVIEW_SECRET`, `APP_URL=https://<domain>`, a persistent absolute `DATABASE_URL` outside `public_html`, `STORAGE_PROVIDER=local` + `PRIVATE_STORAGE_PATH` outside `public_html`, `MFA_ENABLED`, `SAFE_NEST_PRESENTATION_MODE`, and the email/malware/rate-limit providers. Never paste secrets into source.
+4. **Environment variables:** import `.env.production.example` (or add manually). Set strong `AUTH_SECRET`, `FILE_SIGNING_SECRET`, `RETENTION_REVIEW_SECRET`, `APP_URL=https://<domain>`, a persistent absolute `DATABASE_URL` outside `public_html`, `STORAGE_PROVIDER=local` + `PRIVATE_STORAGE_PATH` outside `public_html`, and the email/malware/rate-limit providers. Never paste secrets into source.
 5. **Persistent storage:** create the `DATABASE_URL` directory and the `PRIVATE_STORAGE_PATH` directory (outside `public_html`) so they survive redeployes.
 6. **First deploy:** after the build runs, create the first administrator.
    - Preview (fictional data): `npm run db:seed`.
    - Real go-live: `npm run bootstrap:admin -- --name="Full Name"` — **never** `db:seed` in production.
 7. **Domain/HTTPS:** point the domain at the Node app, enable HTTPS, and redirect HTTP to HTTPS.
 8. **Verify:** `GET /health` (reports not-ready/503 until production config is complete — see Phase 2), then test staff login, referral submission, and restricted-record behaviour.
-9. **Phase 2 (real data):** set `MFA_ENABLED=true`, remove `SAFE_NEST_PRESENTATION_MODE`, configure the real email provider and malware scanner, enable backups, and complete data-protection sign-off before entering any real resident or safeguarding data.
+9. **Phase 2 (real data):** re-introduce MFA + RBAC as a deliberate redesign, set strong production secrets, configure the real email provider and malware scanner, enable backups, and complete data-protection sign-off before entering any real resident or safeguarding data.
 
 > If the live site shows raw `:HL[...]` text or appears static, the build/post-deploy step or the startup command is not configured — Hostinger is serving files instead of running `next start`.
 

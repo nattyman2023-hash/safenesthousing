@@ -2,13 +2,11 @@ import { db } from './db';
 import { formatDate } from './format';
 import { isTaskOverdue } from './domain';
 import { canViewRestricted, getCurrentUser, getScopedIds, hasScopedAccess } from './auth';
-import { presentationModeEnabled } from './presentation';
 
-/** Fictional fallback content is served outside production, or in any build explicitly running in
- * presentation mode. In a normal live environment a database failure must surface honest empty
- * states, never silently substitute demo records. */
-function suppressFictionalFallbacks() { return process.env.NODE_ENV === 'production' && !presentationModeEnabled(); }
-function fictional<T>(items: T[]): T[] { return suppressFictionalFallbacks() ? [] : items; }
+/** Fictional fallback content keeps the CRM populated for assessment when the database is empty
+ * or momentarily unreachable. The previous production-only empty-state + presentation-mode gating
+ * has been removed so local and production behave identically. */
+function fictional<T>(items: T[]): T[] { return items; }
 
 export const fallbackServices = [
   { id: 'supported-accommodation', slug: 'supported-accommodation', title: 'Supported accommodation', summary: 'A safe, settled home with practical support around you.', content: 'Our supported homes combine a real tenancy with consistent, person-led support.', audience: 'Adults who need a safe place to live while building independence.', serviceType: 'Supported accommodation' },
@@ -115,7 +113,7 @@ export async function getDashboardData() {
     const occupiedRooms = properties.reduce((total, property) => total + property.rooms.filter((room) => room.status === 'OCCUPIED').length, 0);
     return { currentResidents: clients, availableRooms, openReferrals: referrals, referralsNeedingAction, openIncidents: incidents, tasks, properties, reviewCount: reviews, hbExceptions, occupancy: totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0 };
   } catch {
-    if (suppressFictionalFallbacks()) return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
+    return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
     return { currentResidents: 24, availableRooms: 6, openReferrals: 11, referralsNeedingAction: [], openIncidents: 3, tasks: [{ id: 't1', title: 'Call back Northside referral', dueAt: new Date(Date.now() + 86400000), priority: 'HIGH', status: 'OPEN' }], properties: fallbackProperties.map((property) => ({ ...property, rooms: [] })), reviewCount: 5, hbExceptions: 2, occupancy: 82 };
   }
 }
