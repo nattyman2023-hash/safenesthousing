@@ -49,4 +49,14 @@ test('staff login keeps normal HTML separate from explicit RSC responses', async
 
   const queryOnly = await request.get('/staff/login?_rsc=test');
   expect(queryOnly.headers()['content-type']).toContain('text/html');
+
+  const accidentalDocumentRsc = await request.get('/staff/login', {
+    headers: {
+      RSC: '1',
+      Accept: 'text/html,application/xhtml+xml',
+      'Sec-Fetch-Dest': 'document'
+    }
+  });
+  expect(accidentalDocumentRsc.headers()['content-type']).toContain('text/html');
+  expect(await accidentalDocumentRsc.text()).toMatch(/^<!DOCTYPE html>/);
 });

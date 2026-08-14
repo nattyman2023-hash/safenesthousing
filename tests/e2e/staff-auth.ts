@@ -5,6 +5,7 @@ export const ADMIN_PASSWORD = 'ChangeMe!123';
 
 export async function enterCredentials(page: Page, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
   await page.goto('/staff/login');
+  await page.waitForLoadState('networkidle');
   await page.getByLabel('Work email').fill(email);
   await page.getByRole('textbox', { name: 'Password' }).fill(password);
   await page.getByRole('button', { name: 'Sign in securely' }).click();
