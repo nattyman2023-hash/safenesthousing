@@ -21,6 +21,13 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
     await expect(page.getByRole('heading', { name: 'Good morning, team' })).toBeVisible();
   });
 
+  test('session survives navigation between CRM pages', async () => {
+    await page.goto('/crm/dashboard');
+    await page.getByRole('link', { name: 'Properties' }).click();
+    await expect(page).toHaveURL(/\/crm\/properties/);
+    await expect(page.getByRole('heading', { name: 'Properties & occupancy' })).toBeVisible();
+  });
+
   test('referrals: list, open a record, and record an audited status change', async () => {
     await page.goto('/crm/referrals');
     const referralLink = page.getByRole('link', { name: 'SN-2607-001' });
