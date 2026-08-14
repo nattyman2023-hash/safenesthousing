@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { fallbackSiteSettings } from '@/lib/data';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { CrmPageHeader, StatusBadge } from '@/components/CrmUI';
 import { SettingsForm } from '@/components/SettingsForm';
 import { EmailitSettingsForm } from '@/components/EmailitSettingsForm';

@@ -14,6 +14,14 @@ test('logged-out visitors are sent to staff login for the CRM', async ({ page })
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });
 
+test('logged-out CRM RSC navigation redirects without an auth server error', async ({ request }) => {
+  const response = await request.get('/crm/properties?_rsc=test', { headers: { RSC: '1' } });
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  expect(body).toContain('NEXT_REDIRECT;replace;/staff/login;307;');
+  expect(body).not.toContain('AUTH_REQUIRED');
+});
+
 test('staff login exposes the password reset entry point', async ({ page }) => {
   await page.goto('/staff/login');
   const resetLink = page.getByRole('link', { name: 'Forgot password?' });

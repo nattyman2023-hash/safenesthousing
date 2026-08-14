@@ -1,6 +1,6 @@
 import { CrmPageHeader, StatusBadge, TableCard } from '@/components/CrmUI';
 import { RetentionReviewControl, RetentionRulePanel, SubjectRequestPanel } from '@/components/GovernancePanel';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { db } from '@/lib/db';
 import { formatDateTime } from '@/lib/format';
 import { parseRetentionReviewSummary } from '@/lib/retention-review';

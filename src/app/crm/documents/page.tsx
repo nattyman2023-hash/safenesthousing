@@ -1,7 +1,7 @@
 import { CrmPageHeader, FilterBar, RestrictedNote, StatusBadge, TableCard } from '@/components/CrmUI';
 import { DocumentUploadForm } from '@/components/DocumentUploadForm';
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 
 function formatBytes(bytes: number) { return bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`; }
 

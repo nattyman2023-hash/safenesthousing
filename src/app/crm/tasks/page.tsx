@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { getCrmTasks } from '@/lib/data';
 import { CrmPageHeader, FilterBar, StatusBadge, TableCard } from '@/components/CrmUI';
 import { ClickableRow } from '@/components/ClickableRow';

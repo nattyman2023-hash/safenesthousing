@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { CrmPageHeader, EmptyState, MetricCard, TableCard } from '@/components/CrmUI';
 import { PlacementForm } from '@/components/PlacementForm';
 import { PlacementStatusControl } from '@/components/PlacementStatusControl';

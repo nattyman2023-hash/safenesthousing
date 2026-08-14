@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { getReportRows, reportDefinitions, reportHeaders, type ReportKey } from '@/lib/reports';
 import { CrmPageHeader, EmptyState, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { formatDateTime } from '@/lib/format';

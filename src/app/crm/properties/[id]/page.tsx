@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { CrmPageHeader, RestrictedNote, StatusBadge, TableCard } from '@/components/CrmUI';
 import { RoomCreateForm } from '@/components/RoomCreateForm';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 
 export default async function CrmPropertyDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;

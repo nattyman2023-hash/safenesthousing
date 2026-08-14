@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/auth';
+import { requireCrmUser as requireUser } from '@/lib/crm-auth';
 import { invoiceRemaining } from '@/lib/domain';
 import { formatDate, formatMoneyMinor } from '@/lib/format';
 import { CrmPageHeader, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
