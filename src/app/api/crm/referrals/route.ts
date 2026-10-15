@@ -4,14 +4,23 @@ import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth';
 import { internalReferralSchema } from '@/lib/crm-validation';
+import { crmServiceWhere, referralServiceWhere } from '@/lib/service-catalogue';
 
 export async function POST(request: Request) {
   try {
     const user = await requireUser();
     const parsed = internalReferralSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Check the referral details.' }, { status: 400 });
-    const service = await db.service.findFirst({ where: { id: parsed.data.serviceId, organisationId: user.organisationId, published: true } });
-    if (!service) return NextResponse.json({ error: 'Choose an available service.' }, { status: 400 });
+    // The selectable list on /crm/referrals/new is built from this same rule
+    // (lib/service-catalogue.ts), so an option the form offered is always accepted here.
+    const service = await db.service.findFirst({ where: { id: parsed.data.serviceId, ...referralServiceWhere(user.organisationId) } });
+    if (!service) {
+      const inOrganisation = await db.service.findFirst({ where: { id: parsed.data.serviceId, ...crmServiceWhere(user.organisationId) }, select: { published: true } });
+      const error = inOrganisation
+        ? 'That service is not published yet, so it cannot accept referrals. Publish it in Content first.'
+        : 'That service is not available in your organisation. Choose a service from the list.';
+      return NextResponse.json({ error }, { status: 400 });
+    }
     let reference = '';
     let referral = null;
     for (let attempt = 0; attempt < 5 && !referral; attempt += 1) {

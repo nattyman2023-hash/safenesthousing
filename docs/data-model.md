@@ -173,3 +173,30 @@ a profile's document table, or the download route.
 Foreign keys, uniqueness rules, indexes, status strings, and relation ownership are defined in Prisma.
 Active room occupancy must also be checked by a transaction/domain rule because SQLite cannot express
 every temporal overlap constraint as a simple unique index.
+
+## Selectable services: one rule for the menu and the write path
+
+A service dropdown must never offer an option the endpoint that receives the submission will reject,
+and it must never widen organisation scope to make a menu look fuller. `lib/service-catalogue.ts` is the
+single source of truth for that, and every selectable list is built from the same filter the endpoint
+applies:
+
+| Where | Rule | Used by |
+|---|---|---|
+| `referralServiceWhere(organisationId)` | organisation scope **and** `published: true` | `POST /api/crm/referrals`, `/crm/referrals/new` |
+| `crmServiceWhere(organisationId)` | organisation scope only (drafts may be linked internally) | client, property and rota endpoints and their forms |
+| `publicServiceWhere()` | `published: true` (the public site serves one organisation) | `POST /api/referrals`, `/referrals` |
+
+`Service` has no `active` or `referralEnabled` column, so publication is the only availability flag the
+write paths can enforce.
+
+Selectable lists are read from the database and never fall back to fixtures. The public content helpers
+(`getServices`, `getPublicProperties`, `getPublishedNews`) still fall back to the fictional lists in
+`lib/data.ts` when a table has no rows, which is deliberate for marketing pages: a fresh installation
+should still show representative public content. Those fallback entries use slug-shaped ids
+(`domestic-abuse`), so they can never be offered by a form or accepted by an endpoint — the referral form
+offered exactly those ids once, and every submission was refused with "Choose an available service."
+
+When no service is eligible, the CRM form says so in plain words, points at where a service is published
+(`/crm/content`) and disables its submit control, rather than presenting a menu that cannot be submitted.
+

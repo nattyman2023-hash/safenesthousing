@@ -227,6 +227,10 @@ h3 { font-size: 1.35rem; }
 .checkbox-row { display: flex; align-items: flex-start; gap: 9px; color: var(--muted); font-family: Arial, sans-serif; font-size: 11px; line-height: 1.45; }
 .checkbox-row input { margin-top: 3px; accent-color: var(--teal-600); }
 .form-error { grid-column: 1 / -1; padding: 12px; border: 1px solid #e5bfc2; background: #fff4f4; color: var(--danger); font-family: Arial, sans-serif; font-size: 12px; }
+/* Honest empty state: a form cannot be offered when the records it needs do not exist yet.
+   Neutral (not an error the person caused) but impossible to miss. */
+.form-notice { grid-column: 1 / -1; padding: 12px; border: 1px solid #e0e9e9; border-left: 3px solid var(--teal-500); background: #f8fbfb; color: var(--navy-900); font-family: Arial, sans-serif; font-size: 12px; }
+.form-notice a { color: var(--teal-700); text-decoration: underline; }
 .form-success { padding: 14px; border: 1px solid #b8dcc9; background: #f2fbf5; color: var(--success); font-family: Arial, sans-serif; font-size: 12px; }
 .privacy-note { grid-column: 1 / -1; color: var(--muted); font-family: Arial, sans-serif; font-size: 11px; }
 .honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; }
