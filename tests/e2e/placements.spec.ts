@@ -17,6 +17,7 @@ import { waitForHydratedForm, waitForReactOwnership } from './hydration';
  */
 
 const TAG = 'e2e-placement-lifecycle';
+const FOREIGN_ORGANISATION_ID = `${TAG}-foreign-org`;
 const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - days * 86_400_000);
 const day = (value: Date) => value.toISOString().slice(0, 10);
@@ -50,6 +51,13 @@ async function createFixture(suffix: string, options: { status?: string; roomLab
     update: {},
     create: { organisationId, reference: `SN-C-${TAG}-${suffix}`, displayName: `${TAG} resident ${suffix}`, status: 'CURRENT', contactFrequencyDays: 7, safeWellFrequencyDays: 30 }
   });
+  // A previous interrupted run may have left a placement for this fixture identity, and its rows
+  // would block the cleanup below, so the fixture is reset before it is rebuilt.
+  const leftovers = await prisma.placement.findMany({ where: { clientId: client.id }, select: { id: true } });
+  const leftoverIds = leftovers.map((row) => row.id);
+  await prisma.occupancyRecord.deleteMany({ where: { placementId: { in: leftoverIds } } });
+  await prisma.moveChecklist.deleteMany({ where: { placementId: { in: leftoverIds } } });
+  await prisma.placement.deleteMany({ where: { id: { in: leftoverIds } } });
   const placement = await prisma.placement.create({
     data: { clientId: client.id, propertyId: property.id, roomId: room.id, status, startDate: options.startDate, endDate, tenancyRef: `${TAG}-${suffix}` }
   });
@@ -67,15 +75,44 @@ async function createFixture(suffix: string, options: { status?: string; roomLab
 }
 
 async function cleanupFixtures() {
+  // The foreign organisation's fixture goes first: its client also matches the namespaced client
+  // sweep below, and a placement still referencing it would block that delete.
+  await resetForeignFixture();
+  await prisma.organisation.deleteMany({ where: { id: FOREIGN_ORGANISATION_ID } });
   for (const fixture of fixtures) {
-    await prisma.occupancyRecord.deleteMany({ where: { placementId: fixture.placementId } });
+    await prisma.occupancyRecord.deleteMany({ where: { OR: [{ placementId: fixture.placementId }, { roomId: fixture.roomId }] } });
     await prisma.moveChecklist.deleteMany({ where: { placementId: fixture.placementId } });
     await prisma.placement.deleteMany({ where: { id: fixture.placementId } });
     await prisma.room.deleteMany({ where: { id: fixture.roomId } });
     await prisma.property.deleteMany({ where: { id: fixture.propertyId } });
   }
   // Only this file's own clients, found by their namespaced reference, are removed.
-  await prisma.client.deleteMany({ where: { reference: { startsWith: `SN-C-${TAG}-` } } });
+  await prisma.client.deleteMany({ where: { reference: { startsWith: `SN-C-${TAG}` } } });
+}
+
+/** Removes any leftover of the foreign fixture, including from an interrupted run, in FK-safe order. */
+async function resetForeignFixture() {
+  const foreignClients = await prisma.client.findMany({ where: { organisationId: FOREIGN_ORGANISATION_ID }, select: { id: true } });
+  const clientIds = foreignClients.map((client) => client.id);
+  const foreignPlacements = await prisma.placement.findMany({ where: { clientId: { in: clientIds } }, select: { id: true } });
+  const placementIds = foreignPlacements.map((placement) => placement.id);
+  await prisma.occupancyRecord.deleteMany({ where: { placementId: { in: placementIds } } });
+  await prisma.moveChecklist.deleteMany({ where: { placementId: { in: placementIds } } });
+  await prisma.placement.deleteMany({ where: { id: { in: placementIds } } });
+  await prisma.room.deleteMany({ where: { property: { organisationId: FOREIGN_ORGANISATION_ID } } });
+  await prisma.client.deleteMany({ where: { id: { in: clientIds } } });
+  await prisma.property.deleteMany({ where: { organisationId: FOREIGN_ORGANISATION_ID } });
+}
+
+/** A placement that exists, but belongs to a different organisation than the signed-in user. */
+async function createForeignPlacement(): Promise<string> {
+  await prisma.organisation.upsert({ where: { id: FOREIGN_ORGANISATION_ID }, update: {}, create: { id: FOREIGN_ORGANISATION_ID, name: 'E2E foreign organisation', slug: FOREIGN_ORGANISATION_ID } });
+  await resetForeignFixture();
+  const property = await prisma.property.create({ data: { organisationId: FOREIGN_ORGANISATION_ID, publicName: `${TAG} foreign property`, slug: `${TAG}-foreign`, neighbourhood: 'E2E', serviceType: 'Supported accommodation', publicSummary: 'Disposable fixture property.', eligibility: 'Test fixture only.', capacity: 1, publicVacancyState: '1 room available' } });
+  const room = await prisma.room.create({ data: { propertyId: property.id, label: 'Foreign Room', status: 'OCCUPIED' } });
+  const client = await prisma.client.create({ data: { organisationId: FOREIGN_ORGANISATION_ID, reference: `SN-C-${TAG}-foreign`, displayName: `${TAG} foreign resident`, status: 'CURRENT' } });
+  const placement = await prisma.placement.create({ data: { clientId: client.id, propertyId: property.id, roomId: room.id, status: 'ACTIVE', startDate: daysAgo(10) } });
+  return placement.id;
 }
 
 test.describe.serial('Placement navigation and lifecycle', () => {
@@ -85,10 +122,13 @@ test.describe.serial('Placement navigation and lifecycle', () => {
   let toEnd: Fixture;
   let toRemove: Fixture;
   let toCorrect: Fixture;
+  let foreignPlacementId = '';
 
   test.beforeAll(async ({ browser }) => {
-    const organisation = await prisma.organisation.findFirstOrThrow({ select: { id: true } });
-    organisationId = organisation.id;
+    // The signed-in administrator's own organisation, not "the first organisation in the database":
+    // a fixture created in somebody else's organisation would be invisible to the very pages under test.
+    const organisation = await prisma.user.findUniqueOrThrow({ where: { email: ADMIN_EMAIL }, select: { organisationId: true } });
+    organisationId = organisation.organisationId;
     live = await createFixture('live', { roomLabel: 'Room L', startDate: daysAgo(40) });
     ended = await createFixture('history', { status: 'MOVED_OUT', roomLabel: 'Room H', startDate: daysAgo(400), endDate: daysAgo(120) });
     // One client carries both placements, so the profile has a current card and a history row.
@@ -97,6 +137,7 @@ test.describe.serial('Placement navigation and lifecycle', () => {
     toEnd = await createFixture('to-end', { roomLabel: 'Room E', startDate: daysAgo(20) });
     toRemove = await createFixture('to-remove', { roomLabel: 'Room R', startDate: daysAgo(5) });
     toCorrect = await createFixture('to-correct', { roomLabel: 'Room C', startDate: daysAgo(3), checklists: 1 });
+    foreignPlacementId = await createForeignPlacement();
 
     await resetStaffSession(ADMIN_EMAIL);
     page = await browser.newPage();
@@ -136,6 +177,15 @@ test.describe.serial('Placement navigation and lifecycle', () => {
     const response = await page.goto('/crm/placements/not-a-real-placement');
     expect(response?.status()).toBe(404);
     await expect(page.getByText('That page is not here.')).toBeVisible();
+  });
+
+  test("another organisation's placement is a 404, not a leak", async () => {
+    const response = await page.goto(`/crm/placements/${foreignPlacementId}`);
+    expect(response?.status()).toBe(404);
+    await expect(page.getByText('That page is not here.')).toBeVisible();
+    await expect(page.getByText(`${TAG} foreign resident`)).toHaveCount(0);
+    await page.goto('/crm/placements');
+    await expect(page.locator('tbody tr', { hasText: `SN-C-${TAG}-foreign` })).toHaveCount(0);
   });
 
   test('the service user profile links to the current placement and to the history', async () => {
