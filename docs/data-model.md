@@ -21,7 +21,9 @@ use a persistent database with migration and backup controls.
 
 `0009_support_operations` rebuilds `CaseNote` and `Task` because SQLite cannot add `NOT NULL` columns
 with non-constant defaults; existing rows are copied across with foreign keys deferred, so nothing is
-lost. `scripts/migrate-local.mjs` asserts each migration's schema effect (columns and tables), copies the
+lost, and the new `Task.updatedAt` (a `NOT NULL` column with no database default) is seeded from each
+row's existing `Task.createdAt` so the rebuild is valid on a database that already holds tasks.
+`scripts/migrate-local.mjs` asserts each migration's schema effect (columns and tables), copies the
 local database and its SQLite sidecars to a timestamped `prisma/*.backup-*` file before applying
 anything, and reports row counts for protected tables so a migration cannot silently empty data.
 

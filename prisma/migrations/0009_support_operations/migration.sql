@@ -1,6 +1,13 @@
 -- Support & Housing Management System: additive columns on existing records plus
 -- the new Support & Risk, operations, appointments, concerns, complaints, compliance,
--- and policy/resource stores. Purely additive — no table is redefined or dropped.
+-- and policy/resource stores.
+--
+-- This migration is NOT purely additive: "CaseNote" and "Task" are rebuilt (created anew,
+-- copied into, then renamed over the old table) because SQLite cannot add the required
+-- NOT NULL columns with non-constant defaults. Every existing row is copied forward as part
+-- of the same sequence, with foreign keys deferred, so no record is dropped or altered.
+-- For "Task", the new NOT NULL "updatedAt" column is seeded from each row's existing
+-- "createdAt" value so the copy is valid on a populated table.
 
 -- Service user profile: support worker, lifecycle dates, and contact/safe & well frequency.
 ALTER TABLE "Client" ADD COLUMN "supportWorkerId" TEXT;
@@ -49,6 +56,9 @@ CREATE INDEX "CaseNote_clientId_occurredAt_idx" ON "CaseNote"("clientId", "occur
 CREATE INDEX "CaseNote_clientId_meaningful_completed_idx" ON "CaseNote"("clientId", "meaningful", "completed");
 
 -- Tasks become workflow-driven: department, category, automation key, recurrence, links.
+-- The table is rebuilt rather than altered: "updatedAt" is NOT NULL without a database
+-- default, which SQLite cannot add to a populated table. Existing rows are copied forward
+-- below, seeding the new "updatedAt" from each row's existing "createdAt" value.
 CREATE TABLE "new_Task" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "organisationId" TEXT NOT NULL,
@@ -79,7 +89,10 @@ CREATE TABLE "new_Task" (
     CONSTRAINT "Task_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "Task_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
-INSERT INTO "new_Task" ("assignedToId", "clientId", "createdAt", "description", "dueAt", "id", "incidentId", "organisationId", "priority", "propertyId", "referralId", "status", "title") SELECT "assignedToId", "clientId", "createdAt", "description", "dueAt", "id", "incidentId", "organisationId", "priority", "propertyId", "referralId", "status", "title" FROM "Task";
+-- "updatedAt" has no database default, so it is seeded from the row's existing "createdAt";
+-- without this the copy fails with "NOT NULL constraint failed: new_Task.updatedAt" on any
+-- database that already holds Task records.
+INSERT INTO "new_Task" ("assignedToId", "clientId", "createdAt", "description", "dueAt", "id", "incidentId", "organisationId", "priority", "propertyId", "referralId", "status", "title", "updatedAt") SELECT "assignedToId", "clientId", "createdAt", "description", "dueAt", "id", "incidentId", "organisationId", "priority", "propertyId", "referralId", "status", "title", "createdAt" FROM "Task";
 DROP TABLE "Task";
 ALTER TABLE "new_Task" RENAME TO "Task";
 CREATE INDEX "Task_organisationId_status_dueAt_idx" ON "Task"("organisationId", "status", "dueAt");
