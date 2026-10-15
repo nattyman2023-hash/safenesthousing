@@ -16,6 +16,26 @@ export function contactCountsAsSupport(note: { completed: boolean; meaningful: b
   return note.completed && note.meaningful;
 }
 
+/** The contact-tracking fields a case note carries when it was logged through the contact log. */
+export type ContactLogNote = {
+  method?: string | null;
+  attempted?: boolean | null;
+  completed?: boolean | null;
+  nextContactDueAt?: Date | null;
+};
+
+/** A contact log and a case note are the same row (see the case-notes API route), so this metadata
+ * is what tells them apart: a note logged as a contact carries a method, a direction-driven
+ * next-due date, or an attempted-contact flag; anything else is a straight case-work note.
+ *
+ * Every measure of planned contact must filter with this before counting a note as support.
+ * Counting a structured note — a review, a safeguarding record, a housing update — would report a
+ * contact that never happened and push the next-due date out, which is how a service user with no
+ * contact at all can read as on track. */
+export function isContactLogNote(note: ContactLogNote): boolean {
+  return Boolean(note.attempted) || note.completed === false || Boolean(note.nextContactDueAt) || Boolean(note.method && note.method !== 'OTHER');
+}
+
 export type PlannedContactState = 'NOT_STARTED' | 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE';
 
 export const CONTACT_DUE_SOON_DAYS = 3;

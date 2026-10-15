@@ -6,6 +6,7 @@ import { summariseAppointments, type CalendarAppointment } from './appointments'
 import { summariseComplaints } from './complaints-domain';
 import { summariseCompliance, summarisePolicies } from './compliance-domain';
 import { summariseConcerns } from './concerns-domain';
+import { isContactLogNote } from './contact-tracking';
 import { buildCalendarEntries, buildCalendarWeek, buildServiceUserAttention, summariseAttention, summariseCalendarWeek } from './dashboard-domain';
 import { summariseMaintenance } from './operations-domain';
 import { isTaskClosed, summariseTaskQueue } from './task-workflow';
@@ -312,14 +313,17 @@ export async function getCrmOperationsBoard(now = new Date()) {
       db.policyResource.findMany({ where: { organisationId }, select: { id: true, status: true, category: true, effectiveFrom: true, reviewDueAt: true, requiresRead: true } }),
       db.task.findMany({ where: { organisationId }, select: { id: true, title: true, status: true, priority: true, dueAt: true, assignedToId: true, department: true, category: true, clientId: true, completedAt: true } }),
       db.client.findMany({ where: { organisationId }, select: { id: true, displayName: true, restricted: true, status: true, keyWorkerId: true, riskLevel: true, contactFrequencyDays: true, safeWellFrequencyDays: true } }),
-      db.caseNote.findMany({ where: { client: { organisationId }, completed: true, meaningful: true }, select: { clientId: true, occurredAt: true } }),
+      db.caseNote.findMany({ where: { client: { organisationId }, completed: true, meaningful: true }, select: { clientId: true, occurredAt: true, method: true, attempted: true, nextContactDueAt: true } }),
       db.safeWellCheck.findMany({ where: { client: { organisationId }, status: { in: ['COMPLETED', 'CONCERN_RAISED'] } }, select: { clientId: true, completedAt: true } })
     ]);
 
-    // The contact query is already limited to notes that count as support, so the newest one is
-    // the last planned contact that actually happened.
+    // The contact query is already limited to notes that happened and were meaningful. Notes logged
+    // as structured case-work rather than contact (the same row, told apart by its contact-tracking
+    // metadata) are dropped here, so the newest survivor is the last planned contact that actually
+    // happened — the same rule the service user profile measures planned contact with.
     const lastContact = new Map<string, Date>();
     for (const note of contactNotes) {
+      if (!isContactLogNote(note)) continue;
       const previous = lastContact.get(note.clientId);
       if (!previous || note.occurredAt.getTime() > previous.getTime()) lastContact.set(note.clientId, note.occurredAt);
     }

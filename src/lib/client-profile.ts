@@ -1,4 +1,5 @@
 import { buildServiceUserTimeline, type TimelineEntry, type TimelineEntryInput, type TimelineKind } from './su-timeline';
+import { isContactLogNote, type ContactLogNote } from './contact-tracking';
 
 /** One aggregated history for a service user profile: every dated event the CRM holds about the
  * person — referral, placement, support plan and review, risk assessment, contacts, case notes,
@@ -51,14 +52,12 @@ export type ClientProfileTimelineOptions = {
 };
 
 /**
- * A case note and the contact log are the same row (see the case-notes API route), so the note's
- * contact-tracking metadata is what tells the two apart: a note logged as a contact carries a
- * method, a direction-driven next-due date, or an attempted-contact flag; anything else is a
- * straight case note.
+ * Whether the timeline shows a note as a contact or as a straight case note. The rule itself lives
+ * in contact-tracking, so the profile, the operations board and the automation engine all classify
+ * — and therefore count — the same notes.
  */
-export function caseNoteTimelineKind(note: { method?: string | null; attempted?: boolean; completed?: boolean; nextContactDueAt?: Date | null }): TimelineKind {
-  const loggedAsContact = Boolean(note.attempted) || note.completed === false || Boolean(note.nextContactDueAt) || Boolean(note.method && note.method !== 'OTHER');
-  return loggedAsContact ? 'CONTACT' : 'CASE_NOTE';
+export function caseNoteTimelineKind(note: ContactLogNote): TimelineKind {
+  return isContactLogNote(note) ? 'CONTACT' : 'CASE_NOTE';
 }
 
 

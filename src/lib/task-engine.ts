@@ -1,7 +1,7 @@
 import { db } from './db';
 import { audit } from './audit';
 import { daysBetween, endOfDay, isWithinDays } from './dates';
-import { contactComplianceState, nextContactDueAt } from './contact-tracking';
+import { contactComplianceState, isContactLogNote, nextContactDueAt } from './contact-tracking';
 import { nextSafeWellDueAt, safeWellDueState } from './safe-well';
 import { riskReviewDueAt, riskReviewState } from './risk-domain';
 import { nextPenPortraitReviewDue, penPortraitReviewState } from './pen-portrait';
@@ -274,7 +274,7 @@ export type ClientAutomationRow = {
   contactFrequencyDays: number;
   safeWellFrequencyDays: number;
   riskLevel: string;
-  caseNotes: Array<{ occurredAt: Date }>;
+  caseNotes: Array<{ occurredAt: Date; method?: string | null; attempted?: boolean | null; nextContactDueAt?: Date | null }>;
   safeWellChecks: Array<{ completedAt: Date | null }>;
   riskAssessments: Array<{ id: string; assessmentType: string; level: string; status: string; assessedAt: Date; reviewDueAt: Date | null }>;
   supportPlans: Array<{ id: string; reviewDate: Date | null }>;
@@ -289,7 +289,9 @@ export function snapshotFromClientRow(client: ClientAutomationRow): ClientAutoma
     assignedToId: client.keyWorkerId ?? client.supportWorkerId ?? null,
     contactFrequencyDays: client.contactFrequencyDays,
     safeWellFrequencyDays: client.safeWellFrequencyDays,
-    lastSupportContactAt: client.caseNotes[0]?.occurredAt ?? null,
+    // A structured case note is not a contact: counting one would report the planned contact as
+    // delivered and postpone the work that this engine exists to raise.
+    lastSupportContactAt: client.caseNotes.find((note) => isContactLogNote(note))?.occurredAt ?? null,
     lastSafeWellCompletedAt: client.safeWellChecks[0]?.completedAt ?? null,
     riskLevel: client.riskLevel,
     riskAssessment: client.riskAssessments[0] ?? null,
@@ -322,7 +324,9 @@ export async function runTaskAutomation(input: { organisationId: string; now?: D
       contactFrequencyDays: true,
       safeWellFrequencyDays: true,
       riskLevel: true,
-      caseNotes: { where: { completed: true, meaningful: true }, orderBy: { occurredAt: 'desc' }, take: 1, select: { occurredAt: true } },
+      // 20 notes is the profile's own window, so the automation engine, the profile and the board
+      // read the same history; the newest note logged as a contact is then picked out below.
+      caseNotes: { where: { completed: true, meaningful: true }, orderBy: { occurredAt: 'desc' }, take: 20, select: { occurredAt: true, method: true, attempted: true, nextContactDueAt: true } },
       safeWellChecks: { where: { status: { in: ['COMPLETED', 'CONCERN_RAISED'] } }, orderBy: { completedAt: 'desc' }, take: 1, select: { completedAt: true } },
       riskAssessments: { where: { status: { in: ['ACTIVE', 'REVIEW_DUE'] } }, orderBy: { assessedAt: 'desc' }, take: 1, select: { id: true, assessmentType: true, level: true, status: true, assessedAt: true, reviewDueAt: true } },
       supportPlans: { where: { status: 'ACTIVE' }, orderBy: { version: 'desc' }, take: 1, select: { id: true, reviewDate: true } },

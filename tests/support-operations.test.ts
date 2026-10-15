@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, addMonths, addWorkingDays, countWorkingDays, dayKey, fromDayKey, toLocalDateInput } from '@/lib/dates';
-import { contactComplianceRate, contactComplianceState, contactCountsAsSupport, requiresContactEscalation, summariseContacts } from '@/lib/contact-tracking';
+import { contactComplianceRate, contactComplianceState, contactCountsAsSupport, isContactLogNote, requiresContactEscalation, summariseContacts } from '@/lib/contact-tracking';
 import { assertSafeWellTransition, canTransitionSafeWellCheck, requiresMaintenanceReferral, safeWellActionAreas, safeWellCompletionRate, safeWellDueState, safeWellOutcome } from '@/lib/safe-well';
 import { advanceTaskDueAt, sortTasksForQueue, summariseTaskQueue, taskAutomationKey, taskDueLabel, taskEscalationLevel, taskMatchesOwnerScope, taskQueueBucket } from '@/lib/task-workflow';
 import { assertSupportTransition, canTransitionSupportStatus, describeProfileGaps, hasUsableContactRoute, moveInTargetState, normaliseContactFrequency, normaliseSafeWellFrequency, placementDays, placementExitDueAt, preferredChannel, profileGaps, profileGapScore } from '@/lib/support-domain';
@@ -14,6 +14,7 @@ import { complianceDueLabel, complianceDueState, complianceIntervalMonths, isPol
 import { AUTOMATION_CATEGORY_LABELS, filterNewAutomationTasks, planAutomationTasks, planClientAutomation, snapshotFromClientRow, type ClientAutomationSnapshot, type ClientAutomationRow } from '@/lib/task-engine';
 import { buildCalendarEntries, buildCalendarWeek, buildDashboardMetrics, buildServiceUserAttention, buildWorkQueue, DASHBOARD_LIST_LIMIT, DASHBOARD_SCOPE_LABELS, groupTasksByOwner, scopeTasks, summariseAttention, summariseCalendarWeek } from '@/lib/dashboard-domain';
 import { buildServiceUserTimeline, groupTimelineByDay, summariseTimeline, timelineDayLabel, timelineKindLabel, type TimelineEntryInput } from '@/lib/su-timeline';
+import { caseNoteTimelineKind } from '@/lib/client-profile';
 
 describe('date helpers', () => {
   it('skips weekends when adding working days', () => expect(dayKey(addWorkingDays(new Date(2026, 0, 16), 1))).toBe('2026-01-19'));
@@ -54,6 +55,34 @@ describe('planned contact compliance', () => {
       { occurredAt: new Date(2026, 4, 20), completed: true, attempted: false, meaningful: true }
     ];
     expect(contactComplianceRate(notes, 7, 28, now)).toBe(50);
+  });
+  it('tells a contact log apart from a structured case note', () => {
+    expect(isContactLogNote({ method: 'HOME_VISIT' })).toBe(true);
+    expect(isContactLogNote({ method: 'OTHER', nextContactDueAt: new Date(2026, 5, 20) })).toBe(true);
+    expect(isContactLogNote({ attempted: true, completed: false })).toBe(true);
+    expect(isContactLogNote({ method: 'OTHER', attempted: false, completed: true, nextContactDueAt: null })).toBe(false);
+    expect(isContactLogNote({ attempted: false, completed: true })).toBe(false);
+    expect(isContactLogNote({})).toBe(false);
+  });
+  it('agrees with the profile timeline on what a contact is', () => {
+    const log = { method: 'PHONE', attempted: false, completed: true, nextContactDueAt: null };
+    const structured = { method: null, attempted: false, completed: true, nextContactDueAt: null };
+    expect(caseNoteTimelineKind(log)).toBe('CONTACT');
+    expect(caseNoteTimelineKind(structured)).toBe('CASE_NOTE');
+    expect(isContactLogNote(log)).toBe(caseNoteTimelineKind(log) === 'CONTACT');
+    expect(isContactLogNote(structured)).toBe(caseNoteTimelineKind(structured) === 'CONTACT');
+  });
+  it('keeps a structured case note out of the planned-contact clock', () => {
+    // A safeguarding note recorded on a person who has never been contacted: counting it would
+    // report the planned contact as delivered and move the next-due date past the real one.
+    const notes = [
+      { occurredAt: new Date(2026, 5, 14), completed: true, attempted: false, meaningful: true, method: null, nextContactDueAt: null },
+      { occurredAt: new Date(2026, 5, 2), completed: true, attempted: false, meaningful: true, method: 'HOME_VISIT' }
+    ];
+    const summary = summariseContacts(notes.filter((note) => isContactLogNote(note)), 7, now);
+    expect(summary.lastSupportContactAt?.getTime()).toBe(new Date(2026, 5, 2).getTime());
+    expect(summary.state).toBe('OVERDUE');
+    expect(contactComplianceState({ lastContactAt: new Date(2026, 5, 14), frequencyDays: 7, now })).toBe('ON_TRACK');
   });
 });
 
@@ -534,6 +563,34 @@ describe('task automation engine', () => {
     ], now);
     expect(drafts.map((item) => item.clientId)).toEqual(['client-b', 'client-a']);
     expect(drafts[0].dueAt.getTime()).toBeLessThanOrEqual(drafts[1].dueAt.getTime());
+  });
+
+  it('bases the contact clock on the newest contact-log note, not a structured note', () => {
+    const row: ClientAutomationRow = {
+      id: 'client-1',
+      displayName: 'Amelia Morgan',
+      restricted: false,
+      keyWorkerId: 'user-1',
+      supportWorkerId: null,
+      contactFrequencyDays: 7,
+      safeWellFrequencyDays: 30,
+      riskLevel: 'Medium',
+      caseNotes: [
+        { occurredAt: new Date(2026, 5, 14), method: null, attempted: false, nextContactDueAt: null },
+        { occurredAt: new Date(2026, 5, 2), method: 'HOME_VISIT', attempted: false, nextContactDueAt: new Date(2026, 5, 9) }
+      ],
+      safeWellChecks: [],
+      riskAssessments: [],
+      supportPlans: [],
+      penPortrait: null
+    };
+    // The structured note is newer, but only the home visit was ever a contact. Reading the newest
+    // note whatever it was found this person on track and raised no planned-contact work at all.
+    const snapshot = snapshotFromClientRow(row);
+    expect(snapshot.lastSupportContactAt?.getTime()).toBe(new Date(2026, 5, 2).getTime());
+    const contact = planClientAutomation(snapshot, now).find((item) => item.category === 'CONTACT_DUE');
+    expect(contact?.automationKey).toBe('CONTACT_DUE:client-1:2026-06-09');
+    expect(contact?.description).toContain('15 days ago');
   });
 
   it('never tracks the same work twice', () => {
