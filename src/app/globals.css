@@ -248,9 +248,8 @@ h3 { font-size: 1.35rem; }
 .crm-brand small { margin-top: 4px; color: var(--teal-300); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; }
 .workspace-pill { display: flex; align-items: center; gap: 8px; margin: 0 5px 22px; padding: 10px 11px; border: 1px solid rgba(255,255,255,.12); border-radius: 7px; color: rgba(255,255,255,.78); font-size: 11px; }
 .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #58bf91; }
-.crm-nav { flex: 1; overflow-y: auto; }
+.crm-nav { flex: 1; min-height: 0; overflow-y: auto; }
 .nav-label { margin: 0 12px 8px; color: rgba(255,255,255,.35); font-size: 9px; }
-.nav-label-lower { margin-top: 25px; }
 .crm-nav a { display: flex; align-items: center; gap: 12px; margin: 2px 0; padding: 10px 12px; border-radius: 6px; color: rgba(255,255,255,.62); font-size: 12px; }
 .crm-nav a:hover { background: rgba(157,211,217,.09); color: #fff; }
 .crm-nav a.active { background: rgba(77,157,168,.23); color: #fff; box-shadow: inset 3px 0 var(--teal-300); }
@@ -266,6 +265,12 @@ h3 { font-size: 1.35rem; }
 .crm-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 70px; padding: 0 42px; border-bottom: 1px solid #dfe8e8; background: #fff; }
 .crm-breadcrumb { color: var(--muted); font-size: 11px; }
 .crm-breadcrumb span { margin: 0 8px; color: #bac6ca; }
+.crm-topbar-leading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crm-menu-toggle { display: none; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #dfe8e8; border-radius: 6px; background: #fff; color: var(--navy-800); cursor: pointer; }
+.crm-menu-toggle:hover { background: var(--sand-100); }
+.crm-menu-close { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; margin-left: auto; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: transparent; color: rgba(255,255,255,.7); cursor: pointer; }
+.crm-nav-group + .crm-nav-group { margin-top: 20px; }
+.crm-scrim { position: fixed; inset: 0; z-index: 35; border: 0; padding: 0; background: rgba(8,23,33,.5); cursor: pointer; }
 .crm-top-actions { display: flex; align-items: center; gap: 10px; }
 .crm-page { max-width: 1440px; padding: 38px 42px 70px; }
 .crm-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
@@ -324,6 +329,10 @@ h3 { font-size: 1.35rem; }
 .empty-state h3 { margin: 14px 0 6px; color: var(--navy-900); font-family: Arial, sans-serif; font-size: 14px; }
 .empty-state p { margin: 0; color: var(--muted); font-size: 12px; }
 .crm-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+/* Grid items default to min-width:auto, so a wide table inside a panel stretches the whole track
+   past the viewport instead of scrolling inside .table-scroll. Letting the item shrink is what
+   makes the existing horizontal scroll work. */
+.crm-panels > *, .dashboard-grid > *, .metric-grid > *, .crm-split > * { min-width: 0; }
 .panel-body { padding: 20px; }
 .progress-row { display: grid; grid-template-columns: 110px 1fr 35px; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--muted); font-size: 10px; }
 .progress-row:last-child { margin-bottom: 0; }
@@ -406,6 +415,9 @@ h3 { font-size: 1.35rem; }
   .crm-main { margin-left: 210px; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .calendar-grid { grid-template-columns: repeat(3, 1fr); }
+  /* Paired panels become one column: two dense panels side by side on a tablet portrait screen
+     squeeze record details into ribbons. */
+  .crm-panels, .dashboard-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 740px) {
   .container { width: min(var(--container), calc(100% - 32px)); }
@@ -437,10 +449,14 @@ h3 { font-size: 1.35rem; }
   .form-field.full, .privacy-note, .form-error { grid-column: auto; }
   .form-card { padding: 22px; }
   .contact-row { grid-template-columns: 90px 1fr; }
-  .crm-sidebar { position: static; width: 100%; min-height: auto; padding: 17px 14px; }
+  /* The sidebar becomes a drawer instead of disappearing: staff on a phone still need every module
+     and the sign-out control, which a display:none navigation used to take away. */
   .crm-app { display: block; }
+  /* Closing delays only the visibility flip so the slide is visible; opening shows it immediately. */
+  .crm-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; width: min(88vw, 320px); min-height: 100vh; padding: 18px 14px; transform: translateX(-104%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; }
+  .crm-sidebar.is-open { transform: none; visibility: visible; box-shadow: var(--shadow-md); transition: transform .22s ease, visibility 0s; }
   .crm-brand { padding-bottom: 14px; }
-  .workspace-pill, .crm-nav, .sidebar-footer { display: none; }
+  .crm-menu-toggle, .crm-menu-close { display: inline-flex; }
   .crm-main { margin-left: 0; }
   .crm-topbar { min-height: 58px; padding: 0 16px; }
   .crm-page { padding: 25px 16px 50px; }

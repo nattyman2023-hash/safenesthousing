@@ -26,3 +26,19 @@ export async function waitForHydratedForm(page: Page, selector: string): Promise
     { timeout: 15_000 }
   );
 }
+
+/**
+ * Waits until React owns any element, not just a form. A control whose behaviour lives in an
+ * onClick handler (a navigation drawer, a disclosure, a toggle) silently does nothing when it is
+ * clicked before hydration, so a test that clicks one has to wait for the same thing a person does.
+ */
+export async function waitForReactOwnership(page: Page, selector: string): Promise<void> {
+  await page.waitForFunction(
+    (target: string) => {
+      const element = document.querySelector(target);
+      return !!element && Object.keys(element).some((key) => key.startsWith('__reactProps'));
+    },
+    selector,
+    { timeout: 15_000 }
+  );
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { requireCrmUser } from '@/lib/crm-auth';
 import { getServices } from '@/lib/data';
 import { CrmPageHeader } from '@/components/CrmUI';
 import { RotaShiftEditForm } from '@/components/RotaShiftEditForm';
@@ -9,8 +9,7 @@ import { formatDateTime } from '@/lib/format';
 
 export default async function RotaShiftDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const user = await getCurrentUser();
-  if (!user) notFound();
+  const user = await requireCrmUser();
   const shift = await db.rotaShift.findFirst({ where: { id: params.id, organisationId: user.organisationId }, include: { assignments: true, property: true } });
   if (!shift) notFound();
   const assignedUserId = shift.assignments[0]?.userId ?? null;

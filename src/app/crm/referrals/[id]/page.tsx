@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { getCrmReferrals, getReferralAssignees } from '@/lib/data';
-import { getCurrentUser } from '@/lib/auth';
+import { requireCrmUser } from '@/lib/crm-auth';
 import { CrmPageHeader, RestrictedNote, StatusBadge, TableCard } from '@/components/CrmUI';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { nextReferralStatuses } from '@/lib/domain';
@@ -11,8 +11,7 @@ import { ReferralStatusForm } from '@/components/ReferralStatusForm';
 
 export default async function ReferralDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const user = await getCurrentUser();
-  if (!user) notFound();
+  const user = await requireCrmUser();
   let referral: any = null;
   try { referral = await db.referral.findFirst({ where: { id: params.id, organisationId: user.organisationId }, include: { service: true, statusHistory: { orderBy: { createdAt: 'desc' } }, notes: { orderBy: { createdAt: 'desc' } }, assignments: { orderBy: { assignedAt: 'desc' }, include: { user: { select: { id: true, name: true, email: true } } } } } }); } catch {}
   if (!referral) referral = (await getCrmReferrals()).find((item) => item.id === params.id);

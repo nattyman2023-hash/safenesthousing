@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "audit:routes": "node scripts/audit-routes.mjs",
     "check:production-config": "tsx scripts/check-production-config.ts",
     "db:generate": "prisma generate",
     "db:migrate": "node scripts/migrate-local.mjs",

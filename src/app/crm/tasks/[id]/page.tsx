@@ -1,14 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { requireCrmUser } from '@/lib/crm-auth';
 import { CrmPageHeader, StatusBadge } from '@/components/CrmUI';
 import { TaskEditForm } from '@/components/TaskEditForm';
 
 export default async function TaskDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const user = await getCurrentUser();
-  if (!user) notFound();
+  const user = await requireCrmUser();
   const task = await db.task.findFirst({ where: { id: params.id, organisationId: user.organisationId }, include: { assignedTo: { select: { id: true, name: true } } } });
   if (!task) notFound();
   const users = await db.user.findMany({ where: { organisationId: user.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }).catch(() => []);
