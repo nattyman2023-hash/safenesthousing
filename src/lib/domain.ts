@@ -53,9 +53,9 @@ export function hasRotaOverlap(records: Array<{ startsAt: Date; endsAt: Date }>,
   return records.some((record) => record.startsAt.getTime() < end.getTime() && start.getTime() < record.endsAt.getTime());
 }
 
-export function isTaskOverdue(task: { dueAt: Date | null; status: string }, now = new Date()): boolean {
-  return task.status !== 'DONE' && !!task.dueAt && task.dueAt.getTime() < now.getTime();
-}
+/** Task overdue rules live in the task-workflow module; re-exported here so the existing data layer
+ * and tests keep one import path. Cancelled work is never overdue. */
+export { isTaskOverdue } from './task-workflow';
 
 export function invoiceTotal(items: Array<{ quantity: number; unitMinor: number }>): number {
   return items.reduce((total, item) => total + item.quantity * item.unitMinor, 0);

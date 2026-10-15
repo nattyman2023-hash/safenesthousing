@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 type RetentionRule = { id: string; resourceType: string; retentionDays: number; legalBasisNote: string | null; active: boolean };
 type SubjectRequest = { id: string; requestType: string; subjectRef: string; status: string; dueAt: string | null; notes: string | null; legalHold: boolean; createdAt: string; updatedAt: string };
@@ -30,6 +31,7 @@ export function RetentionReviewControl({ latestRun }: { latestRun?: { id: string
 }
 
 export function RetentionRulePanel({ rules }: { rules: RetentionRule[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -46,18 +48,19 @@ export function RetentionRulePanel({ rules }: { rules: RetentionRule[] }) {
   return <div>
     {message && <div className="form-success" role="status" style={{ marginBottom: 16 }}>{message}</div>}
     {error && <div className="form-error" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
-    <form id="new-rule" className="form-grid" onSubmit={(event) => submit(event)} style={{ marginBottom: 20 }}>
+    <form id="new-rule" className="form-grid" onSubmit={(event) => submit(event)} style={{ marginBottom: 20 }} method="post">
       <div className="form-field"><label htmlFor="retention-resource">Resource</label><select id="retention-resource" name="resourceType" defaultValue="" required><option value="">Choose a record type</option>{resourceTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></div>
       <div className="form-field"><label htmlFor="retention-days">Retention days</label><input id="retention-days" name="retentionDays" type="number" min="1" max="36500" required /></div>
       <div className="form-field full"><label htmlFor="retention-basis">Approved legal basis or policy reference</label><textarea id="retention-basis" name="legalBasisNote" minLength={5} maxLength={2000} required placeholder="Reference the approved policy, contract, or legal basis." /></div>
       <div className="form-field"><label className="checkbox-label"><input name="active" type="checkbox" defaultChecked /> Active rule</label></div>
-      <div className="form-field"><button className="crm-button crm-button-primary" disabled={busy}>{busy ? 'Saving...' : 'Add retention rule'}</button></div>
+      <div className="form-field"><button className="crm-button crm-button-primary" disabled={!hydrated || busy}>{busy ? 'Saving...' : 'Add retention rule'}</button></div>
     </form>
-    <div className="table-scroll"><table className="crm-table"><thead><tr><th>Resource</th><th>Days</th><th>Policy reference</th><th>Status</th><th>Save</th></tr></thead><tbody>{rules.length ? rules.map((rule) => <tr key={rule.id}><td><strong>{rule.resourceType}</strong></td><td colSpan={4}><form className="form-grid" onSubmit={(event) => submit(event, rule.id)}><div className="form-field"><label className="sr-only" htmlFor={`days-${rule.id}`}>Retention days for {rule.resourceType}</label><input id={`days-${rule.id}`} name="retentionDays" type="number" min="1" max="36500" defaultValue={rule.retentionDays} required /></div><div className="form-field"><label className="sr-only" htmlFor={`basis-${rule.id}`}>Policy reference for {rule.resourceType}</label><input id={`basis-${rule.id}`} name="legalBasisNote" defaultValue={rule.legalBasisNote ?? ''} minLength={5} maxLength={2000} required /></div><div className="form-field"><label className="checkbox-label"><input name="active" type="checkbox" defaultChecked={rule.active} /> Active</label></div><div className="form-field"><button className="crm-button crm-button-secondary" disabled={busy}>Save</button></div></form></td></tr>) : <tr><td colSpan={5}>No retention rules have been approved for this organisation.</td></tr>}</tbody></table></div>
+    <div className="table-scroll"><table className="crm-table"><thead><tr><th>Resource</th><th>Days</th><th>Policy reference</th><th>Status</th><th>Save</th></tr></thead><tbody>{rules.length ? rules.map((rule) => <tr key={rule.id}><td><strong>{rule.resourceType}</strong></td><td colSpan={4}><form className="form-grid" onSubmit={(event) => submit(event, rule.id)} method="post"><div className="form-field"><label className="sr-only" htmlFor={`days-${rule.id}`}>Retention days for {rule.resourceType}</label><input id={`days-${rule.id}`} name="retentionDays" type="number" min="1" max="36500" defaultValue={rule.retentionDays} required /></div><div className="form-field"><label className="sr-only" htmlFor={`basis-${rule.id}`}>Policy reference for {rule.resourceType}</label><input id={`basis-${rule.id}`} name="legalBasisNote" defaultValue={rule.legalBasisNote ?? ''} minLength={5} maxLength={2000} required /></div><div className="form-field"><label className="checkbox-label"><input name="active" type="checkbox" defaultChecked={rule.active} /> Active</label></div><div className="form-field"><button className="crm-button crm-button-secondary" disabled={!hydrated || busy}>Save</button></div></form></td></tr>) : <tr><td colSpan={5}>No retention rules have been approved for this organisation.</td></tr>}</tbody></table></div>
   </div>;
 }
 
 export function SubjectRequestPanel({ requests }: { requests: SubjectRequest[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -82,14 +85,14 @@ export function SubjectRequestPanel({ requests }: { requests: SubjectRequest[] }
   return <div>
     {message && <div className="form-success" role="status" style={{ marginBottom: 16 }}>{message}</div>}
     {error && <div className="form-error" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
-    <form className="form-grid" onSubmit={create} style={{ marginBottom: 20 }}>
+    <form className="form-grid" onSubmit={create} style={{ marginBottom: 20 }} method="post">
       <div className="form-field"><label htmlFor="request-type">Request type</label><select id="request-type" name="requestType" defaultValue="ACCESS" required>{requestTypes.map((type) => <option key={type}>{type}</option>)}</select></div>
       <div className="form-field"><label htmlFor="subject-ref">Approved subject reference</label><input id="subject-ref" name="subjectRef" maxLength={160} placeholder="Client or approved reference" required /></div>
       <div className="form-field"><label htmlFor="request-due">Due date</label><input id="request-due" name="dueAt" type="date" /></div>
       <div className="form-field full"><label htmlFor="request-notes">Review notes</label><textarea id="request-notes" name="notes" maxLength={4000} placeholder="Keep notes factual and proportionate." /></div>
       <div className="form-field"><label className="checkbox-label"><input name="legalHold" type="checkbox" /> Legal hold applies</label></div>
-      <div className="form-field"><button className="crm-button crm-button-primary" disabled={busy}>{busy ? 'Saving...' : 'Log request'}</button></div>
+      <div className="form-field"><button className="crm-button crm-button-primary" disabled={!hydrated || busy}>{busy ? 'Saving...' : 'Log request'}</button></div>
     </form>
-    <div className="table-scroll"><table className="crm-table"><thead><tr><th>Request</th><th>Status</th><th>Due</th><th>Review controls</th></tr></thead><tbody>{requests.length ? requests.map((request) => <tr key={request.id}><td><strong>{request.requestType}</strong><br /><span className="muted">{request.subjectRef}</span>{request.legalHold && <><br /><span className="muted">Legal hold active</span></>}</td><td colSpan={3}><form className="form-grid" onSubmit={(event) => update(event, request)}><div className="form-field"><label className="sr-only" htmlFor={`status-${request.id}`}>Status</label><select id={`status-${request.id}`} name="status" defaultValue={request.status}>{requestStatuses.map((status) => <option key={status}>{status}</option>)}</select></div><div className="form-field"><label className="sr-only" htmlFor={`due-${request.id}`}>Due date</label><input id={`due-${request.id}`} name="dueAt" type="date" defaultValue={dateValue(request.dueAt)} /></div><div className="form-field full"><label className="sr-only" htmlFor={`notes-${request.id}`}>Review notes</label><textarea id={`notes-${request.id}`} name="notes" defaultValue={request.notes ?? ''} maxLength={4000} placeholder="Resolution or review notes" /></div><div className="form-field"><label className="checkbox-label"><input name="legalHold" type="checkbox" defaultChecked={request.legalHold} /> Legal hold</label></div><div className="form-field"><button className="crm-button crm-button-secondary" disabled={busy}>Save review</button></div>{request.legalHold && <p className="muted" style={{ gridColumn: '1 / -1', margin: 0 }}>Release and save the legal hold before changing this request to completed or declined.</p>}</form></td></tr>) : <tr><td colSpan={4}>No data-subject requests have been logged.</td></tr>}</tbody></table></div>
+    <div className="table-scroll"><table className="crm-table"><thead><tr><th>Request</th><th>Status</th><th>Due</th><th>Review controls</th></tr></thead><tbody>{requests.length ? requests.map((request) => <tr key={request.id}><td><strong>{request.requestType}</strong><br /><span className="muted">{request.subjectRef}</span>{request.legalHold && <><br /><span className="muted">Legal hold active</span></>}</td><td colSpan={3}><form className="form-grid" onSubmit={(event) => update(event, request)} method="post"><div className="form-field"><label className="sr-only" htmlFor={`status-${request.id}`}>Status</label><select id={`status-${request.id}`} name="status" defaultValue={request.status}>{requestStatuses.map((status) => <option key={status}>{status}</option>)}</select></div><div className="form-field"><label className="sr-only" htmlFor={`due-${request.id}`}>Due date</label><input id={`due-${request.id}`} name="dueAt" type="date" defaultValue={dateValue(request.dueAt)} /></div><div className="form-field full"><label className="sr-only" htmlFor={`notes-${request.id}`}>Review notes</label><textarea id={`notes-${request.id}`} name="notes" defaultValue={request.notes ?? ''} maxLength={4000} placeholder="Resolution or review notes" /></div><div className="form-field"><label className="checkbox-label"><input name="legalHold" type="checkbox" defaultChecked={request.legalHold} /> Legal hold</label></div><div className="form-field"><button className="crm-button crm-button-secondary" disabled={!hydrated || busy}>Save review</button></div>{request.legalHold && <p className="muted" style={{ gridColumn: '1 / -1', margin: 0 }}>Release and save the legal hold before changing this request to completed or declined.</p>}</form></td></tr>) : <tr><td colSpan={4}>No data-subject requests have been logged.</td></tr>}</tbody></table></div>
   </div>;
 }

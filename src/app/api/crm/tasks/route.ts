@@ -15,7 +15,11 @@ export async function POST(request: Request) {
       const assignee = await db.user.findFirst({ where: { id: parsed.data.assignedToId, organisationId: user.organisationId, active: true } });
       if (!assignee) return NextResponse.json({ error: 'Choose an active staff assignee.' }, { status: 400 });
     }
-    const task = await db.task.create({ data: { organisationId: user.organisationId, title: parsed.data.title, description: parsed.data.description, priority: parsed.data.priority, dueAt, assignedToId: parsed.data.assignedToId || undefined } });
+    if (parsed.data.clientId) {
+      const client = await db.client.findFirst({ where: { id: parsed.data.clientId, organisationId: user.organisationId } });
+      if (!client) return NextResponse.json({ error: 'Choose a client from your organisation.' }, { status: 400 });
+    }
+    const task = await db.task.create({ data: { organisationId: user.organisationId, title: parsed.data.title, description: parsed.data.description, priority: parsed.data.priority, dueAt, assignedToId: parsed.data.assignedToId || undefined, clientId: parsed.data.clientId || undefined } });
     await audit({ organisationId: user.organisationId, actorId: user.id, action: 'TASK_CREATED', resourceType: 'Task', resourceId: task.id, after: { priority: task.priority, dueAt: task.dueAt, assignedToId: task.assignedToId } });
     return NextResponse.json({ id: task.id });
   } catch (error) {

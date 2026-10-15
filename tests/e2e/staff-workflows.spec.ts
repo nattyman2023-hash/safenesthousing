@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { prisma, resetStaffSession } from './db-reset';
 import { ADMIN_EMAIL, enterCredentials, assertSignedIn } from './staff-auth';
+import { waitForHydratedForm } from './hydration';
 
 test.describe.serial('Staff sign-in and CRM operations', () => {
   let page: Page;
@@ -18,7 +19,7 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
   test('staff can sign in without a second-factor challenge', async () => {
     await enterCredentials(page);
     await assertSignedIn(page);
-    await expect(page.getByRole('heading', { name: 'Good morning, team' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations dashboard' })).toBeVisible();
   });
 
   test('session survives navigation between CRM pages', async () => {
@@ -35,6 +36,8 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
     await referralLink.click();
     await expect(page).toHaveURL(/\/crm\/referrals\//);
     await expect(page.getByRole('heading', { name: 'A. Morgan' })).toBeVisible();
+    // The status form is a client component: its submit control is disabled until hydration.
+    await waitForHydratedForm(page, '#reason');
     await page.getByLabel('Reason for change').fill('Playwright staff-workflow coverage: automated status progression.');
     await page.getByRole('button', { name: /Save status change/ }).click();
     await expect(page.getByText('Status change saved and audited.')).toBeVisible();
@@ -42,6 +45,9 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
 
   test('tasks: create a task and progress an existing one', async () => {
     await page.goto('/crm/tasks');
+    // One hydration commit covers the whole client root, so waiting on the create form also
+    // covers the row status controls; without it a change could be lost before hydration.
+    await waitForHydratedForm(page, '#new');
     const taskTitle = `Playwright coverage task ${Date.now()}`;
     await page.getByLabel('Task', { exact: true }).fill(taskTitle);
     await page.getByRole('button', { name: 'Create task' }).click();
@@ -51,6 +57,10 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
     const seededRow = page.locator('tr', { hasText: 'Call back Northside referral' });
     await seededRow.getByLabel('Task status').selectOption('IN_PROGRESS');
     await expect(seededRow.getByLabel('Task status')).toHaveValue('IN_PROGRESS');
+    // The select writes through the API, so assert the stored record changed and not just the DOM.
+    await expect
+      .poll(async () => (await prisma.task.findFirst({ where: { title: 'Call back Northside referral' } }))?.status)
+      .toBe('IN_PROGRESS');
   });
 
   test('clients: restricted records are marked and open correctly', async () => {

@@ -2,10 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 type Task = { id: string; title: string; description: string | null; priority: string; status: string; dueAt: Date | string | null; assignedToId: string | null };
 
 export function TaskEditForm({ task, users }: { task: Task; users: { id: string; name: string }[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,7 +21,7 @@ export function TaskEditForm({ task, users }: { task: Task; users: { id: string;
     setBusy(false);
   }
 
-  return <form className="form-grid" onSubmit={submit}>
+  return <form className="form-grid" onSubmit={submit} method="post">
     {message && <div className={message === 'Task saved.' ? 'form-success' : 'form-error'} role="status" style={{ gridColumn: '1 / -1' }}>{message}</div>}
     <div className="form-field full"><label htmlFor="task-title">Task</label><input id="task-title" name="title" defaultValue={task.title} required minLength={3} maxLength={200} /></div>
     <div className="form-field full"><label htmlFor="task-description">Description</label><textarea id="task-description" name="description" defaultValue={task.description ?? ''} maxLength={2000} /></div>
@@ -27,6 +29,6 @@ export function TaskEditForm({ task, users }: { task: Task; users: { id: string;
     <div className="form-field"><label htmlFor="task-status">Status</label><select id="task-status" name="status" defaultValue={task.status}><option>OPEN</option><option>IN_PROGRESS</option><option>DONE</option><option>CANCELLED</option></select></div>
     <div className="form-field"><label htmlFor="task-due">Due date</label><input id="task-due" name="dueAt" type="date" defaultValue={task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : ''} /></div>
     <div className="form-field"><label htmlFor="task-assignee">Assign to</label><select id="task-assignee" name="assignedToId" defaultValue={task.assignedToId ?? ''}><option value="">Unassigned</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></div>
-    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save task'}</button></div>
+    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={!hydrated || busy}>{busy ? 'Saving…' : 'Save task'}</button></div>
   </form>;
 }

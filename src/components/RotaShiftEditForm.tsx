@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 type Shift = { id: string; shiftType: string; startsAt: Date | string; endsAt: Date | string; handover: string | null; overrideReason: string | null; propertyId: string | null; serviceId: string | null };
 
@@ -12,6 +13,7 @@ function toDatetimeLocal(value: Date | string) {
 }
 
 export function RotaShiftEditForm({ shift, assignedUserId, users, properties, services }: { shift: Shift; assignedUserId: string | null; users: { id: string; name: string }[]; properties: { id: string; publicName: string }[]; services: { id: string; title: string }[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,7 @@ export function RotaShiftEditForm({ shift, assignedUserId, users, properties, se
     setBusy(false);
   }
 
-  return <form className="form-grid" onSubmit={submit}>
+  return <form className="form-grid" onSubmit={submit} method="post">
     {message && <div className={message === 'Shift saved.' ? 'form-success' : 'form-error'} role="status" style={{ gridColumn: '1 / -1' }}>{message}</div>}
     <div className="form-field"><label htmlFor="shift-type">Shift type</label><input id="shift-type" name="shiftType" defaultValue={shift.shiftType} required minLength={2} maxLength={100} /></div>
     <div className="form-field"><label htmlFor="shift-property">Property</label><select id="shift-property" name="propertyId" defaultValue={shift.propertyId ?? ''}><option value="">No property</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.publicName}</option>)}</select></div>
@@ -35,6 +37,6 @@ export function RotaShiftEditForm({ shift, assignedUserId, users, properties, se
     <div className="form-field"><label htmlFor="shift-assignee">Assign to</label><select id="shift-assignee" name="assignedUserId" defaultValue={assignedUserId ?? ''}><option value="">Unfilled</option>{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></div>
     <div className="form-field full"><label htmlFor="shift-handover">Handover notes</label><textarea id="shift-handover" name="handover" defaultValue={shift.handover ?? ''} /></div>
     <div className="form-field full"><label htmlFor="shift-override">Authorised conflict override reason</label><input id="shift-override" name="overrideReason" defaultValue={shift.overrideReason ?? ''} placeholder="Only required for an approved overlap" /></div>
-    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save shift'}</button></div>
+    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={!hydrated || busy}>{busy ? 'Saving…' : 'Save shift'}</button></div>
   </form>;
 }

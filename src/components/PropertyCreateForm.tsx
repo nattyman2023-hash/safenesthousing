@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 export function PropertyCreateForm({ services }: { services: { id: string; title: string }[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [state, setState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -14,7 +16,7 @@ export function PropertyCreateForm({ services }: { services: { id: string; title
     const result = await response.json();
     if (response.ok) { setState('success'); setMessage('Property added to the portfolio.'); formElement.reset(); router.refresh(); } else { setState('error'); setMessage(result.error ?? 'We could not add the property.'); }
   }
-  return <form id="new" className="form-card" onSubmit={submit}><h2>Add property</h2>{message && <div className={state === 'success' ? 'form-success' : 'form-error'} role="status">{message}</div>}<div className="form-grid">
+  return <form id="new" className="form-card" onSubmit={submit} method="post"><h2>Add property</h2>{message && <div className={state === 'success' ? 'form-success' : 'form-error'} role="status">{message}</div>}<div className="form-grid">
     <div className="form-field"><label htmlFor="prop-name">Property name</label><input id="prop-name" name="publicName" placeholder="Willow House" required /></div>
     <div className="form-field"><label htmlFor="prop-service">Service</label><select id="prop-service" name="serviceId" defaultValue=""><option value="">No linked service</option>{services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}</select></div>
     <div className="form-field"><label htmlFor="prop-neighbourhood">Neighbourhood</label><input id="prop-neighbourhood" name="neighbourhood" placeholder="Northside" required /></div>
@@ -25,6 +27,6 @@ export function PropertyCreateForm({ services }: { services: { id: string; title
     <div className="form-field full"><label htmlFor="prop-eligibility">Eligibility</label><textarea id="prop-eligibility" name="eligibility" required /></div>
     <div className="form-field full"><label htmlFor="prop-access">Accessibility</label><input id="prop-access" name="accessibility" /></div>
     <div className="form-field full"><label className="checkbox-row"><input type="checkbox" name="confidential" /> Confidential address</label></div>
-    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={state === 'sending'}>{state === 'sending' ? 'Adding…' : 'Add property'}</button></div>
+    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={!hydrated || state === 'sending'}>{state === 'sending' ? 'Adding…' : 'Add property'}</button></div>
   </div></form>;
 }

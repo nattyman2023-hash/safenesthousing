@@ -2,10 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 type Assignee = { id: string; name: string; email: string };
 
 export function ReferralAssignmentForm({ referralId, currentAssignee, assignees }: { referralId: string; currentAssignee?: Assignee | null; assignees: Assignee[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,5 +21,5 @@ export function ReferralAssignmentForm({ referralId, currentAssignee, assignees 
     setBusy(false);
   }
 
-  return <form id="assign" className="form-grid" onSubmit={submit}>{currentAssignee && <p className="muted" style={{ gridColumn: '1 / -1', margin: 0 }}>Currently assigned to <strong>{currentAssignee.name}</strong> ({currentAssignee.email}).</p>}{message && <div className={message.startsWith('Assignment saved') ? 'form-success' : 'form-error'} role="status" style={{ gridColumn: '1 / -1' }}>{message}</div>}<div className="form-field"><label htmlFor="assignedToId">Assign to</label><select id="assignedToId" name="assignedToId" defaultValue={currentAssignee?.id ?? ''} required><option value="">Choose a staff member</option>{assignees.map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.name} · {assignee.email}</option>)}</select></div><div className="form-field"><button className="crm-button crm-button-primary" disabled={busy || !assignees.length}>{busy ? 'Saving...' : currentAssignee ? 'Reassign referral' : 'Assign referral'}</button></div>{!assignees.length && <p className="muted" style={{ gridColumn: '1 / -1' }}>No active staff are available in this organisation.</p>}</form>;
+  return <form id="assign" className="form-grid" onSubmit={submit} method="post">{currentAssignee && <p className="muted" style={{ gridColumn: '1 / -1', margin: 0 }}>Currently assigned to <strong>{currentAssignee.name}</strong> ({currentAssignee.email}).</p>}{message && <div className={message.startsWith('Assignment saved') ? 'form-success' : 'form-error'} role="status" style={{ gridColumn: '1 / -1' }}>{message}</div>}<div className="form-field"><label htmlFor="assignedToId">Assign to</label><select id="assignedToId" name="assignedToId" defaultValue={currentAssignee?.id ?? ''} required><option value="">Choose a staff member</option>{assignees.map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.name} · {assignee.email}</option>)}</select></div><div className="form-field"><button className="crm-button crm-button-primary" disabled={!hydrated || busy || !assignees.length}>{busy ? 'Saving...' : currentAssignee ? 'Reassign referral' : 'Assign referral'}</button></div>{!assignees.length && <p className="muted" style={{ gridColumn: '1 / -1' }}>No active staff are available in this organisation.</p>}</form>;
 }

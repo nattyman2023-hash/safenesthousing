@@ -9,6 +9,11 @@ const nav = [
   { label: 'Overview', href: '/crm/dashboard', icon: 'home' as const },
   { label: 'Referrals', href: '/crm/referrals', icon: 'clipboard' as const },
   { label: 'Clients', href: '/crm/clients', icon: 'users' as const },
+  { label: 'Appointments', href: '/crm/appointments', icon: 'calendar' as const },
+  { label: 'Calendar', href: '/crm/calendar', icon: 'calendar' as const },
+  { label: 'Repairs', href: '/crm/maintenance', icon: 'building' as const },
+  { label: 'Concerns', href: '/crm/concerns', icon: 'alert' as const },
+  { label: 'Complaints', href: '/crm/complaints', icon: 'clipboard' as const },
   { label: 'Placements', href: '/crm/placements', icon: 'clipboard' as const },
   { label: 'Properties', href: '/crm/properties', icon: 'building' as const },
   { label: 'Incidents', href: '/crm/incidents', icon: 'alert' as const },
@@ -18,6 +23,8 @@ const nav = [
 ];
 
 const secondary = [
+  { label: 'Compliance', href: '/crm/compliance', icon: 'shield' as const },
+  { label: 'Policies', href: '/crm/policies', icon: 'file' as const },
   { label: 'Documents', href: '/crm/documents', icon: 'file' as const },
   { label: 'Content', href: '/crm/content', icon: 'file' as const },
   { label: 'Reports', href: '/crm/reports', icon: 'chart' as const },

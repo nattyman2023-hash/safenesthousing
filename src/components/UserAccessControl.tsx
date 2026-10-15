@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 export function UserAccessControl({ userId, active, roleSlug, roles }: { userId: string; active: boolean; roleSlug: string; roles: { slug: string; name: string }[] }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [enabled, setEnabled] = useState(active);
   const [role, setRole] = useState(roleSlug || roles[0]?.slug || '');
@@ -16,5 +18,5 @@ export function UserAccessControl({ userId, active, roleSlug, roles }: { userId:
     if (response.ok) { setMessage('Saved'); router.refresh(); } else setMessage(result.error ?? 'Unable to update');
     setBusy(false);
   }
-  return <form onSubmit={save} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}><select aria-label="User role" value={role} onChange={(event) => setRole(event.target.value)}>{roles.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select><label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Active</label><button className="crm-button crm-button-secondary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>{message && <small className={message === 'Saved' ? 'text-success' : 'text-danger'}>{message}</small>}</form>;
+  return <form onSubmit={save} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} method="post"><select aria-label="User role" value={role} onChange={(event) => setRole(event.target.value)}>{roles.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select><label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Active</label><button className="crm-button crm-button-secondary" disabled={!hydrated || busy}>{busy ? 'Saving…' : 'Save'}</button>{message && <small className={message === 'Saved' ? 'text-success' : 'text-danger'}>{message}</small>}</form>;
 }

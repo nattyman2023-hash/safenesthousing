@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useHydrated } from '@/lib/use-hydrated';
 
 function minorFromPounds(value: string): number | null {
   const trimmed = value.trim();
@@ -11,6 +12,7 @@ function minorFromPounds(value: string): number | null {
 }
 
 export function InvoicePaymentForm({ invoiceId, remainingMinor }: { invoiceId: string; remainingMinor: number }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
@@ -27,5 +29,5 @@ export function InvoicePaymentForm({ invoiceId, remainingMinor }: { invoiceId: s
     setBusy(false);
   }
   if (remainingMinor <= 0) return <span className="muted">Paid in full</span>;
-  return <form onSubmit={submit} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><input aria-label="Payment amount in pounds" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount (£)" inputMode="decimal" style={{ width: 100 }} required /><input aria-label="Payment date" type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} required /><select aria-label="Payment method" value={method} onChange={(event) => setMethod(event.target.value)}><option value="BANK_TRANSFER">Bank transfer</option><option value="DIRECT_DEBIT">Direct debit</option><option value="CASH">Cash</option><option value="CARD">Card</option><option value="OTHER">Other</option></select><button className="crm-button crm-button-secondary" disabled={busy}>{busy ? 'Saving…' : 'Record'}</button>{message && <small className={message === 'Payment recorded.' ? 'form-success' : 'text-danger'}>{message}</small>}</form>;
+  return <form onSubmit={submit} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }} method="post"><input aria-label="Payment amount in pounds" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount (£)" inputMode="decimal" style={{ width: 100 }} required /><input aria-label="Payment date" type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} required /><select aria-label="Payment method" value={method} onChange={(event) => setMethod(event.target.value)}><option value="BANK_TRANSFER">Bank transfer</option><option value="DIRECT_DEBIT">Direct debit</option><option value="CASH">Cash</option><option value="CARD">Card</option><option value="OTHER">Other</option></select><button className="crm-button crm-button-secondary" disabled={!hydrated || busy}>{busy ? 'Saving…' : 'Record'}</button>{message && <small className={message === 'Payment recorded.' ? 'form-success' : 'text-danger'}>{message}</small>}</form>;
 }

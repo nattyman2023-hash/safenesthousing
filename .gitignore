@@ -19,3 +19,6 @@ storage
 /*.out
 /*.err
 /cookies.txt
+# Throwaway local scratch: probes, codemods, captured output, and dev-database backups
+tmp-*
+prisma/*.backup-*

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { prisma, resetStaffSession } from './db-reset';
 import { ADMIN_EMAIL, enterCredentials, assertSignedIn } from './staff-auth';
+import { waitForHydratedForm } from './hydration';
 
 test.describe.serial('Incidents, rota, and document storage', () => {
   let page: Page;
@@ -28,12 +29,16 @@ test.describe.serial('Incidents, rota, and document storage', () => {
     await incidentLink.click();
     await expect(page).toHaveURL(/\/crm\/incidents\//);
 
+    // Both follow-up forms are client components whose submit controls stay disabled until
+    // hydration, so wait for React to own the form first (no arbitrary timeouts).
+    await waitForHydratedForm(page, '#incident-update');
     const updateText = `Playwright coverage update ${Date.now()}`;
     await page.getByLabel('Update').fill(updateText);
     await page.getByRole('button', { name: 'Save update' }).click();
     await expect(page.getByText('Incident update saved.')).toBeVisible();
     await expect(page.getByText(updateText)).toBeVisible();
 
+    await waitForHydratedForm(page, '#incident-action');
     const actionText = `Playwright coverage action ${Date.now()}`;
     await page.getByLabel('Action', { exact: true }).fill(actionText);
     await page.getByRole('button', { name: 'Add action' }).click();
@@ -43,6 +48,7 @@ test.describe.serial('Incidents, rota, and document storage', () => {
 
   test('rota: create a shift with no property, service, or assignee selected', async () => {
     await page.goto('/crm/rota');
+    await waitForHydratedForm(page, '#shift-type');
     const shiftType = `Playwright coverage shift ${Date.now()}`;
     await page.getByLabel('Shift type').fill(shiftType);
     await page.getByLabel('Starts').fill('2026-08-01T09:00');
@@ -56,6 +62,7 @@ test.describe.serial('Incidents, rota, and document storage', () => {
 
   test('documents: upload a private document', async () => {
     await page.goto('/crm/documents');
+    await waitForHydratedForm(page, '#document-file');
     const fileName = `playwright-coverage-${Date.now()}.txt`;
     await page.setInputFiles('#document-file', {
       name: fileName,

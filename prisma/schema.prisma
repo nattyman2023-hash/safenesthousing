@@ -25,6 +25,7 @@ model Organisation {
   categories          NewsCategory[]
   referrals           Referral[]
   clients             Client[]
+  relatedPeople       RelatedPerson[]
   incidents           Incident[]
   tasks               Task[]
   documents           Document[]
@@ -33,6 +34,11 @@ model Organisation {
   retentionRules      DataRetentionRule[]
   subjectRequests     DataSubjectRequest[]
   retentionReviewRuns DataRetentionReviewRun[]
+  maintenanceTickets  MaintenanceTicket[]
+  appointments        Appointment[]
+  concerns            Concern[]
+  complaints          Complaint[]
+  policyResources     PolicyResource[]
 }
 
 model User {
@@ -57,6 +63,9 @@ model User {
   assignedReferrals ReferralAssignment[] @relation("AssignedReferralUser")
   assignedIncidents Incident[]           @relation("IncidentLead")
   assignedTasks     Task[]               @relation("TaskAssignee")
+  keyWorkerClients  Client[]             @relation("ClientKeyWorker")
+  supportWorkerClients Client[]          @relation("ClientSupportWorker")
+  createdClientRelationships ClientRelationship[] @relation("ClientRelationshipCreator")
 }
 
 model Role {
@@ -242,6 +251,10 @@ model Property {
   occupancyRecords   OccupancyRecord[]
   tasks              Task[]
   rotaShifts         RotaShift[]
+  maintenanceTickets MaintenanceTicket[]
+  appointments       Appointment[]
+  concerns           Concern[]
+  complianceRecords  PropertyComplianceRecord[]
 
   @@unique([organisationId, slug])
   @@index([published, publicVacancyState, serviceType])
@@ -434,8 +447,22 @@ model Client {
   displayName        String
   dateOfBirth        DateTime?
   keyWorkerId        String?
+  supportWorkerId    String?
+  phone              String?
+  email              String?
+  address            String?
+  gender             String?
+  pronouns           String?
+  admissionDate      DateTime?
+  dischargeDate      DateTime?
+  moveInTargetDate   DateTime?
+  referralSource     String?
+  contactFrequencyDays Int                @default(7)
+  safeWellFrequencyDays Int               @default(30)
   riskLevel          String                @default("Medium")
   communicationNeeds String?
+  importantAlerts    String?
+  safeguardingFlag   Boolean               @default(false)
   restricted         Boolean               @default(false)
   status             String                @default("CURRENT")
   createdAt          DateTime              @default(now())
@@ -443,6 +470,8 @@ model Client {
   organisation       Organisation          @relation(fields: [organisationId], references: [id])
   service            Service?              @relation(fields: [serviceId], references: [id])
   referral           Referral?             @relation(fields: [referralId], references: [id])
+  keyWorker          User?                 @relation("ClientKeyWorker", fields: [keyWorkerId], references: [id])
+  supportWorker      User?                 @relation("ClientSupportWorker", fields: [supportWorkerId], references: [id])
   placements         Placement[]
   occupancyRecords   OccupancyRecord[]
   supportPlans       SupportPlan[]
@@ -450,9 +479,23 @@ model Client {
   incidents          Incident[]
   tasks              Task[]
   housingBenefit     HousingBenefitClaim[]
+  documents          Document[]
+  relationshipsFrom  ClientRelationship[]  @relation("ClientRelationships")
+  relationshipsTo    ClientRelationship[]  @relation("RelatedClientRelationships")
+  penPortrait        PenPortrait?
+  riskAssessments    RiskAssessment[]
+  safeWellChecks     SafeWellCheck[]
+  moveChecklists     MoveChecklist[]
+  maintenanceTickets MaintenanceTicket[]
+  appointments       Appointment[]
+  concerns           Concern[]
+  complaints         Complaint[]
+  invoices           Invoice[]
 
   @@index([organisationId, status])
   @@index([displayName])
+  @@index([organisationId, keyWorkerId])
+  @@index([organisationId, supportWorkerId])
 }
 
 model Placement {
@@ -464,6 +507,7 @@ model Placement {
   startDate        DateTime
   endDate          DateTime?
   tenancyRef       String?
+  endedReason      String?
   client           Client            @relation(fields: [clientId], references: [id])
   property         Property          @relation(fields: [propertyId], references: [id])
   occupancyRecords OccupancyRecord[]
@@ -533,6 +577,14 @@ model CaseNote {
   outcome        String?
   followUpAction String?
   followUpDate   DateTime?
+  occurredAt     DateTime          @default(now())
+  method         String            @default("OTHER")
+  direction      String?           @default("OUTBOUND")
+  durationMinutes Int?
+  completed      Boolean           @default(true)
+  attempted      Boolean           @default(false)
+  meaningful     Boolean           @default(true)
+  nextContactDueAt DateTime?
   restricted     Boolean           @default(false)
   finalised      Boolean           @default(false)
   createdAt      DateTime          @default(now())
@@ -540,6 +592,8 @@ model CaseNote {
   versions       CaseNoteVersion[]
 
   @@index([clientId, createdAt])
+  @@index([clientId, occurredAt])
+  @@index([clientId, meaningful, completed])
 }
 
 model CaseNoteVersion {
@@ -622,13 +676,28 @@ model Task {
   propertyId     String?
   referralId     String?
   incidentId     String?
+  department     String       @default("SUPPORT")
+  category       String       @default("GENERAL")
+  source         String       @default("MANUAL")
+  automationKey  String?
+  recurrenceRule String?
+  recurrenceIntervalDays Int?
+  relatedType    String?
+  relatedId      String?
+  completedAt    DateTime?
+  completedById  String?
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organisation   Organisation @relation(fields: [organisationId], references: [id])
   assignedTo     User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
   property       Property?    @relation(fields: [propertyId], references: [id])
   client         Client?      @relation(fields: [clientId], references: [id])
 
+  @@unique([organisationId, automationKey])
   @@index([organisationId, status, dueAt])
+  @@index([organisationId, department, status])
+  @@index([organisationId, assignedToId, status])
+  @@index([clientId, status])
 }
 
 model RotaShift {
@@ -681,13 +750,20 @@ model HousingBenefitClaim {
 model Invoice {
   id             String        @id @default(cuid())
   organisationId String
+  clientId       String?
   reference      String        @unique
   status         String        @default("DRAFT")
   totalMinor     Int           @default(0)
+  periodStart    DateTime?
+  periodEnd      DateTime?
   issuedAt       DateTime?
   dueAt          DateTime?
+  client         Client?       @relation(fields: [clientId], references: [id])
   items          InvoiceItem[]
   payments       Payment[]
+
+  @@index([organisationId, status, dueAt])
+  @@index([clientId, status])
 }
 
 model InvoiceItem {
@@ -711,6 +787,7 @@ model Payment {
 model Document {
   id                String             @id @default(cuid())
   organisationId    String
+  clientId          String?
   displayName       String
   storageKey        String             @unique
   mimeType          String
@@ -719,16 +796,67 @@ model Document {
   malwareScanStatus String             @default("SKIPPED")
   malwareScannedAt  DateTime?
   category          String
+  // What the document is, in the words of the person who filed it. Optional so existing files
+  // keep working; free text and never a place for confidential narrative.
+  description       String?
+  // The date on the document itself, which can differ from the upload date.
+  documentDate      DateTime?
   restricted        Boolean            @default(false)
   expiresAt         DateTime?
   reviewDate        DateTime?
   uploadedBy        String
   createdAt         DateTime           @default(now())
   organisation      Organisation       @relation(fields: [organisationId], references: [id])
+  client            Client?            @relation(fields: [clientId], references: [id])
   versions          DocumentVersion[]
   referralLinks     ReferralDocument[]
 
   @@index([organisationId, category, restricted])
+  @@index([organisationId, clientId, createdAt])
+}
+
+model RelatedPerson {
+  id                    String                @id @default(cuid())
+  organisationId        String
+  fullName              String
+  phone                 String?
+  email                 String?
+  address               String?
+  notes                 String?
+  preferredContactMethod String?
+  consentToContact      Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  organisation          Organisation          @relation(fields: [organisationId], references: [id])
+  relationships         ClientRelationship[]
+
+  @@index([organisationId, fullName])
+}
+
+model ClientRelationship {
+  id                      String         @id @default(cuid())
+  clientId                String
+  relatedClientId         String?
+  relatedPersonId         String?
+  relationshipType        String
+  inverseRelationshipType String?
+  startDate               DateTime?
+  endDate                 DateTime?
+  notes                   String?
+  isEmergencyContact      Boolean        @default(false)
+  isNextOfKin             Boolean        @default(false)
+  createdBy               String
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+  client                  Client         @relation("ClientRelationships", fields: [clientId], references: [id])
+  relatedClient           Client?        @relation("RelatedClientRelationships", fields: [relatedClientId], references: [id])
+  relatedPerson           RelatedPerson? @relation(fields: [relatedPersonId], references: [id])
+  creator                 User           @relation("ClientRelationshipCreator", fields: [createdBy], references: [id])
+
+  @@index([clientId, endDate])
+  @@index([relatedClientId, endDate])
+  @@index([relatedPersonId, endDate])
+  @@unique([clientId, relatedClientId, relationshipType])
 }
 
 model DocumentVersion {
@@ -805,3 +933,332 @@ model DataRetentionReviewRun {
 
   @@index([organisationId, startedAt])
 }
+
+// ---------------------------------------------------------------------------
+// Support & Risk module — PEN Portraits, risk assessment, Safe & Well, moves.
+// ---------------------------------------------------------------------------
+
+/// One PEN Portrait per service user. Status drives the dashboard prompt.
+model PenPortrait {
+  id              String    @id @default(cuid())
+  clientId        String    @unique
+  status          String    @default("NOT_STARTED")
+  aboutMe         String?
+  myNeeds         String?
+  howIShow        String?
+  whatMatters     String?
+  myStrengths     String?
+  communication   String?
+  likes           String?
+  dislikes        String?
+  healthNeeds     String?
+  risksToMe       String?
+  whoSupportsMe   String?
+  completedAt     DateTime?
+  reviewDueAt     DateTime?
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  client          Client    @relation(fields: [clientId], references: [id])
+
+  @@index([status, reviewDueAt])
+}
+
+/// A formal risk assessment owned by a service user.
+model RiskAssessment {
+  id              String       @id @default(cuid())
+  clientId        String
+  assessmentType  String       @default("SUPPORT")
+  level           String       @default("MEDIUM")
+  status          String       @default("DRAFT")
+  assessedAt      DateTime     @default(now())
+  reviewDueAt     DateTime?
+  assessedBy      String?
+  summary         String?
+  controlMeasures String?
+  triggerReason   String?
+  supersedesId    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  client          Client       @relation(fields: [clientId], references: [id])
+  factors         RiskFactor[]
+
+  @@index([clientId, status])
+  @@index([status, reviewDueAt])
+  @@index([level, status])
+}
+
+/// An individual scored risk factor inside an assessment.
+model RiskFactor {
+  id               String         @id @default(cuid())
+  riskAssessmentId String
+  category         String
+  description      String
+  likelihood       Int            @default(3)
+  impact           Int            @default(3)
+  score            Int            @default(9)
+  controlMeasures  String?
+  status           String         @default("OPEN")
+  createdAt        DateTime       @default(now())
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id])
+
+  @@index([riskAssessmentId, score])
+}
+
+/// A Safe & Well check. Frequency comes from the service user's profile.
+model SafeWellCheck {
+  id             String    @id @default(cuid())
+  clientId       String
+  status         String    @default("SCHEDULED")
+  scheduledFor   DateTime?
+  completedAt    DateTime?
+  checkedById    String?
+  method         String    @default("IN_PERSON")
+  concernRaised  Boolean   @default(false)
+  concernSummary String?
+  actionsTaken   String?
+  nextDueAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  client         Client    @relation(fields: [clientId], references: [id])
+
+  @@index([clientId, status])
+  @@index([status, nextDueAt])
+}
+
+/// Move-in or move-out checklist for a service user.
+model MoveChecklist {
+  id           String              @id @default(cuid())
+  clientId     String
+  checklistType String             @default("MOVE_IN")
+  status       String              @default("NOT_STARTED")
+  targetDate   DateTime?
+  completedAt  DateTime?
+  propertyId   String?
+  placementId  String?
+  createdBy    String?
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  client       Client              @relation(fields: [clientId], references: [id])
+  items        MoveChecklistItem[]
+
+  @@index([clientId, checklistType, status])
+  @@index([status, targetDate])
+}
+
+/// A single tracked step inside a move checklist.
+model MoveChecklistItem {
+  id           String        @id @default(cuid())
+  checklistId  String
+  label        String
+  category     String        @default("OTHER")
+  status       String        @default("PENDING")
+  ownerId      String?
+  dueAt        DateTime?
+  completedAt  DateTime?
+  notes        String?
+  sortOrder    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  checklist    MoveChecklist @relation(fields: [checklistId], references: [id])
+
+  @@index([checklistId, sortOrder])
+  @@index([status, dueAt])
+}
+
+
+// ---------------------------------------------------------------------------
+// Operations module — maintenance, appointments, concerns, complaints.
+// ---------------------------------------------------------------------------
+
+/// A repair or facilities job, optionally raised on behalf of a service user.
+model MaintenanceTicket {
+  id             String              @id @default(cuid())
+  organisationId String
+  reference      String              @unique
+  clientId       String?
+  propertyId     String?
+  roomId         String?
+  title          String
+  description    String?
+  category       String              @default("GENERAL")
+  trade          String              @default("GENERAL")
+  priority       String              @default("MEDIUM")
+  status         String              @default("REPORTED")
+  safetyRisk     Boolean             @default(false)
+  reportedById   String?
+  assignedToId   String?
+  contractor     String?
+  reportedAt     DateTime            @default(now())
+  targetFixAt    DateTime?
+  completedAt    DateTime?
+  costMinor      Int?
+  organisation   Organisation        @relation(fields: [organisationId], references: [id])
+  client         Client?             @relation(fields: [clientId], references: [id])
+  property       Property?           @relation(fields: [propertyId], references: [id])
+  updates        MaintenanceUpdate[]
+  appointments   Appointment[]
+
+  @@index([organisationId, status, priority])
+  @@index([organisationId, propertyId, status])
+  @@index([clientId, status])
+  @@index([status, targetFixAt])
+}
+
+/// Progress note against a maintenance ticket.
+model MaintenanceUpdate {
+  id        String            @id @default(cuid())
+  ticketId  String
+  status    String?
+  note      String
+  authorId  String?
+  createdAt DateTime          @default(now())
+  ticket    MaintenanceTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+/// A scheduled appointment for a service user, contractor visit, or review.
+model Appointment {
+  id             String             @id @default(cuid())
+  organisationId String
+  clientId       String?
+  propertyId     String?
+  ticketId       String?
+  title          String
+  category       String             @default("SUPPORT")
+  location       String?
+  startsAt       DateTime
+  endsAt         DateTime?
+  allDay         Boolean            @default(false)
+  status         String             @default("SCHEDULED")
+  ownerId        String?
+  attendees      String?
+  notes          String?
+  completedAt    DateTime?
+  outcome        String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  organisation   Organisation       @relation(fields: [organisationId], references: [id])
+  client         Client?            @relation(fields: [clientId], references: [id])
+  property       Property?          @relation(fields: [propertyId], references: [id])
+  ticket         MaintenanceTicket? @relation(fields: [ticketId], references: [id])
+
+  @@index([organisationId, startsAt])
+  @@index([clientId, startsAt])
+  @@index([status, startsAt])
+}
+
+
+/// A concern or welfare worry raised about a service user.
+model Concern {
+  id             String          @id @default(cuid())
+  organisationId String
+  reference      String          @unique
+  clientId       String?
+  propertyId     String?
+  title          String
+  summary        String
+  category       String          @default("WELFARE")
+  severity       String          @default("MEDIUM")
+  status         String          @default("OPEN")
+  raisedById     String?
+  ownerId        String?
+  raisedAt       DateTime        @default(now())
+  dueAt          DateTime?
+  resolvedAt     DateTime?
+  resolution     String?
+  referralNeeded Boolean         @default(false)
+  organisation   Organisation    @relation(fields: [organisationId], references: [id])
+  client         Client?         @relation(fields: [clientId], references: [id])
+  property       Property?       @relation(fields: [propertyId], references: [id])
+  actions        ConcernAction[]
+
+  @@index([organisationId, status, severity])
+  @@index([clientId, status])
+  @@index([status, dueAt])
+}
+
+/// Action taken to resolve a concern.
+model ConcernAction {
+  id        String   @id @default(cuid())
+  concernId String
+  note      String
+  authorId  String?
+  createdAt DateTime @default(now())
+  concern   Concern  @relation(fields: [concernId], references: [id])
+
+  @@index([concernId, createdAt])
+}
+
+/// A formal complaint, including service-user and external complaints.
+model Complaint {
+  id              String       @id @default(cuid())
+  organisationId  String
+  reference       String       @unique
+  clientId        String?
+  raisedBy        String       @default("SERVICE_USER")
+  complainantName String?
+  title           String
+  summary         String
+  category        String       @default("SERVICE")
+  severity        String       @default("MEDIUM")
+  status          String       @default("LOGGED")
+  stage           String       @default("STAGE_1")
+  ownerId         String?
+  receivedAt      DateTime     @default(now())
+  acknowledgedAt  DateTime?
+  dueAt           DateTime?
+  closedAt        DateTime?
+  outcome         String?
+  learning        String?
+  organisation    Organisation @relation(fields: [organisationId], references: [id])
+  client          Client?      @relation(fields: [clientId], references: [id])
+
+  @@index([organisationId, status, dueAt])
+  @@index([clientId, status])
+}
+
+/// Recurring compliance obligation for a property (gas, electric, legionella...).
+model PropertyComplianceRecord {
+  id             String   @id @default(cuid())
+  propertyId     String
+  complianceType String
+  status         String   @default("DUE")
+  lastCheckedAt  DateTime?
+  nextDueAt      DateTime?
+  certificateRef String?
+  contractor     String?
+  outcome        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  property       Property @relation(fields: [propertyId], references: [id])
+
+  @@index([propertyId, complianceType])
+  @@index([status, nextDueAt])
+}
+
+/// A policy, procedure, or resource document surfaced in the CRM.
+model PolicyResource {
+  id             String       @id @default(cuid())
+  organisationId String
+  title          String
+  category       String       @default("POLICY")
+  summary        String?
+  version        String?
+  documentId     String?
+  externalUrl    String?
+  status         String       @default("ACTIVE")
+  ownerId        String?
+  effectiveFrom  DateTime?
+  reviewDueAt    DateTime?
+  requiresRead   Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, category, status])
+  @@index([status, reviewDueAt])
+}
+

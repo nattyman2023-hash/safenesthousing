@@ -24,6 +24,8 @@ export async function POST(request: Request) {
     }
     const dateOfBirth = parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth) : undefined;
     if (dateOfBirth && Number.isNaN(dateOfBirth.getTime())) return NextResponse.json({ error: 'Enter a valid date of birth.' }, { status: 400 });
+    const admissionDate = parsed.data.admissionDate ? new Date(parsed.data.admissionDate) : undefined;
+    if (admissionDate && Number.isNaN(admissionDate.getTime())) return NextResponse.json({ error: 'Enter a valid admission date.' }, { status: 400 });
     let reference = makeReference();
     while (await db.client.findUnique({ where: { reference } })) reference = makeReference();
     const client = await db.client.create({
@@ -34,8 +36,16 @@ export async function POST(request: Request) {
         serviceId: parsed.data.serviceId || undefined,
         referralId: parsed.data.referralId || undefined,
         dateOfBirth,
+        phone: parsed.data.phone || undefined,
+        email: parsed.data.email || undefined,
+        address: parsed.data.address || undefined,
+        gender: parsed.data.gender || undefined,
+        pronouns: parsed.data.pronouns || undefined,
+        admissionDate,
         riskLevel: parsed.data.riskLevel,
         communicationNeeds: parsed.data.communicationNeeds,
+        importantAlerts: parsed.data.importantAlerts,
+        safeguardingFlag: parsed.data.safeguardingFlag,
         restricted: parsed.data.restricted,
         status: parsed.data.status
       }

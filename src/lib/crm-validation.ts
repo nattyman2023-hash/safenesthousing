@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import { APPOINTMENT_CATEGORIES, APPOINTMENT_STATUSES } from './appointments';
+import { COMPLAINT_CATEGORIES, COMPLAINT_OUTCOMES, COMPLAINT_RAISED_BY, COMPLAINT_STAGES, COMPLAINT_STATUSES } from './complaints-domain';
+import { COMPLIANCE_STATUSES, POLICY_CATEGORIES, POLICY_STATUSES, PROPERTY_COMPLIANCE_TYPES } from './compliance-domain';
+import { CONCERN_CATEGORIES, CONCERN_SEVERITIES, CONCERN_STATUSES } from './concerns-domain';
+import { CONTACT_DIRECTIONS, CONTACT_METHODS } from './contact-tracking';
+import { MOVE_CHECKLIST_TYPES, MOVE_ITEM_STATUSES } from './move-checklist';
+import { MAINTENANCE_CATEGORIES, MAINTENANCE_PRIORITIES, MAINTENANCE_STATUSES, MAINTENANCE_TRADES } from './operations-domain';
+import { RISK_ASSESSMENT_STATUSES, RISK_ASSESSMENT_TYPES, RISK_LEVELS } from './risk-domain';
+import { SAFE_WELL_METHODS, SAFE_WELL_STATUSES } from './safe-well';
 
 export const internalReferralSchema = z.object({
   personName: z.string().trim().min(2).max(160),
@@ -13,13 +22,26 @@ export const internalReferralSchema = z.object({
   knownRisks: z.string().trim().max(4000).optional()
 });
 
+const flagValue = z.preprocess((value) => value === true || value === 'on' || value === 'true', z.boolean());
+const numberFromForm = (max: number) => z.preprocess((value) => (value === '' || value === undefined || value === null ? undefined : value), z.coerce.number().int().min(0).max(max).optional());
+
+/** A finalised case note. The contact-tracking fields (see lib/contact-tracking.ts) are optional so
+ * the plain "add case note" form keeps working, while a logged contact can be recorded in full. */
 export const caseNoteSchema = z.object({
   contactType: z.string().trim().min(2).max(80),
   category: z.string().trim().min(2).max(80),
   note: z.string().trim().min(10).max(8000),
   outcome: z.string().trim().max(2000).optional(),
+  followUpAction: z.string().trim().max(2000).optional(),
   followUpDate: z.string().trim().optional(),
-  restricted: z.preprocess((value) => value === true || value === 'on' || value === 'true', z.boolean()).default(false)
+  occurredAt: z.string().trim().optional(),
+  method: z.enum(CONTACT_METHODS).optional(),
+  direction: z.preprocess((value) => (value === '' ? undefined : value), z.enum(CONTACT_DIRECTIONS).optional()),
+  durationMinutes: numberFromForm(1440),
+  completed: flagValue.optional(),
+  attempted: flagValue.optional(),
+  meaningful: flagValue.optional(),
+  restricted: flagValue.default(false)
 });
 
 export const incidentReviewSchema = z.object({
@@ -52,7 +74,8 @@ export const taskCreateSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
   dueAt: z.string().trim().optional(),
-  assignedToId: z.string().trim().optional()
+  assignedToId: z.string().trim().optional(),
+  clientId: z.string().trim().optional()
 });
 
 export const taskStatusSchema = z.object({ status: z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED']) });
@@ -243,9 +266,251 @@ export const clientCreateSchema = z.object({
   displayName: z.string().trim().min(2).max(160),
   serviceId: z.string().trim().optional(),
   referralId: z.string().trim().optional(),
+  keyWorkerId: z.preprocess((value) => value === '' ? undefined : value, z.string().trim().optional()),
   dateOfBirth: safeDateInput,
+  phone: z.string().trim().max(80).optional(),
+  email: z.preprocess((value) => value === '' ? undefined : value, z.string().trim().email().max(160).optional()),
+  address: z.string().trim().max(1000).optional(),
+  gender: z.string().trim().max(80).optional(),
+  pronouns: z.string().trim().max(80).optional(),
+  admissionDate: safeDateInput,
   riskLevel: z.enum(['Low', 'Medium', 'High']).default('Medium'),
   communicationNeeds: z.string().trim().max(1000).optional(),
+  importantAlerts: z.string().trim().max(2000).optional(),
+  safeguardingFlag: booleanInput.default(false),
   restricted: booleanInput.default(false),
   status: z.enum(['CURRENT', 'WAITLIST', 'MOVED_ON', 'ARCHIVED']).default('WAITLIST')
 });
+
+export const clientUpdateSchema = clientCreateSchema.partial();
+
+const optionalText = (max: number) => z.preprocess((value) => value === '' ? undefined : value, z.string().trim().max(max).optional());
+
+export const clientRelationshipSchema = z.object({
+  relatedClientId: optionalText(100),
+  relationshipType: z.string().trim().min(2).max(80),
+  inverseRelationshipType: optionalText(80),
+  startDate: safeDateInput,
+  endDate: safeDateInput,
+  notes: optionalText(3000),
+  isEmergencyContact: booleanInput.default(false),
+  isNextOfKin: booleanInput.default(false),
+  fullName: optionalText(160),
+  phone: optionalText(80),
+  email: z.preprocess((value) => value === '' ? undefined : value, z.string().trim().email().max(160).optional()),
+  address: optionalText(1000),
+  relatedPersonNotes: optionalText(3000),
+  preferredContactMethod: optionalText(80),
+  consentToContact: booleanInput.default(false)
+});
+
+export const clientRelationshipUpdateSchema = clientRelationshipSchema.partial();
+/* ------------------------------------------------------------------------- *
+ * Support operations modules.
+ *
+ * Every enum below is imported from the domain module that owns it, so the CRM
+ * can never accept a value that a domain transition guard would reject later.
+ * Optional free text accepts an empty string from a browser form and stores
+ * `undefined` instead, which keeps "not answered" distinct from "answered with
+ * nothing" in the database.
+ * ------------------------------------------------------------------------- */
+
+const optionalString = (max: number) => z.preprocess((value) => (value === '' ? undefined : value), z.string().trim().max(max).optional());
+const optionalRef = optionalString(60);
+
+export const appointmentCreateSchema = z.object({
+  title: z.string().trim().min(3, 'Give the appointment a title.').max(200),
+  category: z.enum(APPOINTMENT_CATEGORIES),
+  startsAt: z.string().trim().min(1, 'Choose when the appointment starts.'),
+  endsAt: optionalString(40),
+  location: optionalString(200),
+  clientId: optionalRef,
+  propertyId: optionalRef,
+  ticketId: optionalRef,
+  ownerId: optionalRef,
+  attendees: optionalString(500),
+  notes: optionalString(2000),
+  allDay: flagValue.default(false)
+});
+
+export const appointmentUpdateSchema = z.object({
+  status: z.enum(APPOINTMENT_STATUSES),
+  outcome: optionalString(2000),
+  notes: optionalString(2000),
+  startsAt: optionalString(40),
+  location: optionalString(200)
+});
+
+export const maintenanceTicketCreateSchema = z.object({
+  title: z.string().trim().min(3, 'Describe the repair in a few words.').max(200),
+  description: optionalString(2000),
+  category: z.enum(MAINTENANCE_CATEGORIES),
+  trade: z.enum(MAINTENANCE_TRADES),
+  priority: z.enum(MAINTENANCE_PRIORITIES),
+  safetyRisk: flagValue.default(false),
+  clientId: optionalRef,
+  propertyId: optionalRef,
+  roomId: optionalRef,
+  assignedToId: optionalRef,
+  contractor: optionalString(160),
+  targetFixAt: optionalString(40),
+  costMinor: numberFromForm(100_000_000)
+});
+
+export const maintenanceTicketUpdateSchema = z.object({
+  status: z.enum(MAINTENANCE_STATUSES),
+  note: z.string().trim().min(3, 'Add a short progress note.').max(2000),
+  contractor: optionalString(160),
+  targetFixAt: optionalString(40),
+  costMinor: numberFromForm(100_000_000)
+});
+
+export const concernCreateSchema = z.object({
+  title: z.string().trim().min(3, 'Give the concern a title.').max(200),
+  summary: z.string().trim().min(10, 'Describe what has been noticed and by whom.').max(4000),
+  category: z.enum(CONCERN_CATEGORIES),
+  severity: z.enum(CONCERN_SEVERITIES),
+  clientId: optionalRef,
+  propertyId: optionalRef,
+  ownerId: optionalRef,
+  dueAt: optionalString(40),
+  referralNeeded: flagValue.default(false)
+});
+
+export const concernUpdateSchema = z.object({
+  status: z.enum(CONCERN_STATUSES),
+  resolution: optionalString(4000),
+  referralNeeded: flagValue.optional(),
+  action: optionalString(2000),
+  dueAt: optionalString(40),
+  ownerId: optionalRef
+});
+
+export const complaintCreateSchema = z.object({
+  title: z.string().trim().min(3, 'Give the complaint a title.').max(200),
+  summary: z.string().trim().min(10, 'Record what was said in the complainant\'s own terms.').max(4000),
+  category: z.enum(COMPLAINT_CATEGORIES),
+  severity: z.enum(CONCERN_SEVERITIES),
+  stage: z.enum(COMPLAINT_STAGES),
+  raisedBy: z.enum(COMPLAINT_RAISED_BY),
+  complainantName: optionalString(160),
+  clientId: optionalRef,
+  ownerId: optionalRef,
+  receivedAt: optionalString(40),
+  dueAt: optionalString(40)
+});
+
+export const complaintUpdateSchema = z.object({
+  status: z.enum(COMPLAINT_STATUSES),
+  stage: z.enum(COMPLAINT_STAGES),
+  severity: z.enum(CONCERN_SEVERITIES),
+  outcome: z.preprocess((value) => (value === '' ? undefined : value), z.enum(COMPLAINT_OUTCOMES).optional()),
+  learning: optionalString(4000),
+  resolution: optionalString(4000),
+  dueAt: optionalString(40),
+  ownerId: optionalRef
+});
+
+export const complianceRecordSchema = z.object({
+  propertyId: z.string().trim().min(1, 'Choose the property this obligation belongs to.'),
+  complianceType: z.enum(PROPERTY_COMPLIANCE_TYPES),
+  status: z.enum(COMPLIANCE_STATUSES),
+  lastCheckedAt: optionalString(40),
+  nextDueAt: optionalString(40),
+  certificateRef: optionalString(160),
+  contractor: optionalString(160),
+  outcome: optionalString(2000),
+  notes: optionalString(2000)
+});
+
+export const complianceRecordUpdateSchema = complianceRecordSchema.partial().extend({
+  propertyId: z.string().trim().min(1, 'Choose the property this obligation belongs to.')
+});
+
+export const policyResourceCreateSchema = z.object({
+  title: z.string().trim().min(3, 'Give the policy a title.').max(200),
+  category: z.enum(POLICY_CATEGORIES),
+  summary: optionalString(2000),
+  version: optionalString(40),
+  externalUrl: optionalString(500),
+  status: z.enum(POLICY_STATUSES),
+  ownerId: optionalRef,
+  effectiveFrom: optionalString(40),
+  reviewDueAt: optionalString(40),
+  requiresRead: flagValue.default(false)
+});
+
+export const policyResourceUpdateSchema = z.object({
+  status: z.enum(POLICY_STATUSES),
+  summary: optionalString(2000),
+  version: optionalString(40),
+  reviewDueAt: optionalString(40),
+  requiresRead: flagValue.optional()
+});
+
+/* --- Service user profile records ---------------------------------------- */
+
+const penPortraitFieldShape = {
+  aboutMe: optionalString(4000),
+  myNeeds: optionalString(4000),
+  howIShow: optionalString(4000),
+  whatMatters: optionalString(4000),
+  myStrengths: optionalString(4000),
+  communication: optionalString(4000),
+  likes: optionalString(4000),
+  dislikes: optionalString(4000),
+  healthNeeds: optionalString(4000),
+  risksToMe: optionalString(4000),
+  whoSupportsMe: optionalString(4000)
+};
+
+export const penPortraitSchema = z.object(penPortraitFieldShape);
+
+export const riskAssessmentCreateSchema = z.object({
+  assessmentType: z.enum(RISK_ASSESSMENT_TYPES),
+  level: z.enum(RISK_LEVELS),
+  status: z.enum(RISK_ASSESSMENT_STATUSES),
+  reviewDueAt: optionalString(40),
+  summary: z.string().trim().min(10, 'Summarise what the assessment found.').max(4000),
+  controlMeasures: optionalString(4000),
+  triggerReason: optionalString(2000)
+});
+
+export const riskAssessmentUpdateSchema = z.object({
+  status: z.enum(RISK_ASSESSMENT_STATUSES),
+  level: z.enum(RISK_LEVELS).optional(),
+  reviewDueAt: optionalString(40),
+  summary: optionalString(4000),
+  controlMeasures: optionalString(4000),
+  triggerReason: optionalString(2000)
+});
+
+export const safeWellCheckCreateSchema = z.object({
+  scheduledFor: optionalString(40),
+  method: z.enum(SAFE_WELL_METHODS),
+  checkedById: optionalRef,
+  actionsTaken: optionalString(4000)
+});
+
+export const safeWellCheckUpdateSchema = z.object({
+  status: z.enum(SAFE_WELL_STATUSES),
+  method: z.enum(SAFE_WELL_METHODS).optional(),
+  concernRaised: flagValue.optional(),
+  concernSummary: optionalString(4000),
+  actionsTaken: optionalString(4000)
+});
+
+export const moveChecklistCreateSchema = z.object({
+  checklistType: z.enum(MOVE_CHECKLIST_TYPES),
+  targetDate: optionalString(40),
+  propertyId: optionalRef,
+  notes: optionalString(2000)
+});
+
+export const moveChecklistItemUpdateSchema = z.object({
+  status: z.enum(MOVE_ITEM_STATUSES),
+  notes: optionalString(2000)
+});
+
+/* Contact tracking lives on the case note itself (lib/contact-tracking.ts reads the case-note
+ * contact fields), so logged contacts use `caseNoteSchema` above. */

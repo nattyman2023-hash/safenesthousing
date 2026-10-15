@@ -2,6 +2,14 @@ import { db } from './db';
 import { formatDate } from './format';
 import { isTaskOverdue } from './domain';
 import { getCurrentUser } from './auth';
+import { summariseAppointments, type CalendarAppointment } from './appointments';
+import { summariseComplaints } from './complaints-domain';
+import { summariseCompliance, summarisePolicies } from './compliance-domain';
+import { summariseConcerns } from './concerns-domain';
+import { buildCalendarEntries, buildCalendarWeek, buildServiceUserAttention, summariseAttention, summariseCalendarWeek } from './dashboard-domain';
+import { summariseMaintenance } from './operations-domain';
+import { isTaskClosed, summariseTaskQueue } from './task-workflow';
+import { addDays, startOfWeek } from './dates';
 
 /** Fictional fallback content keeps the CRM populated for assessment when the database is empty
  * or momentarily unreachable. Fictional fallback data is limited to development and test environments
@@ -196,4 +204,222 @@ export async function getRotaShifts() {
 
 function safeJsonArray(value: string): string[] {
   try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+}
+
+/* --- Operations module loaders (appointments, repairs, concerns, complaints, compliance, policies) --- */
+
+const clientRefSelect = { id: true, displayName: true, reference: true, restricted: true } as const;
+
+export async function getCrmAppointments() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.appointment.findMany({
+      where: { organisationId: user.organisationId },
+      include: { client: { select: clientRefSelect }, property: { select: { id: true, publicName: true } } },
+      orderBy: { startsAt: 'asc' }
+    });
+  } catch { return []; }
+}
+
+export async function getCrmMaintenanceTickets() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.maintenanceTicket.findMany({
+      where: { organisationId: user.organisationId },
+      include: { property: { select: { id: true, publicName: true } }, client: { select: clientRefSelect }, updates: { orderBy: { createdAt: 'desc' }, take: 3 } },
+      orderBy: [{ status: 'asc' }, { targetFixAt: 'asc' }]
+    });
+  } catch { return []; }
+}
+
+export async function getCrmConcerns() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.concern.findMany({
+      where: { organisationId: user.organisationId },
+      include: { client: { select: clientRefSelect }, property: { select: { id: true, publicName: true } }, actions: { orderBy: { createdAt: 'asc' } } },
+      orderBy: { raisedAt: 'desc' }
+    });
+  } catch { return []; }
+}
+
+export async function getCrmComplaints() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.complaint.findMany({
+      where: { organisationId: user.organisationId },
+      include: { client: { select: clientRefSelect } },
+      orderBy: { receivedAt: 'desc' }
+    });
+  } catch { return []; }
+}
+
+export async function getCrmComplianceRecords() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    const properties = await db.property.findMany({ where: { organisationId: user.organisationId }, select: { id: true } });
+    if (!properties.length) return [];
+    return await db.propertyComplianceRecord.findMany({
+      where: { propertyId: { in: properties.map((property) => property.id) } },
+      include: { property: { select: { id: true, publicName: true, serviceType: true } } },
+      orderBy: [{ nextDueAt: 'asc' }]
+    });
+  } catch { return []; }
+}
+
+export async function getCrmPolicies() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.policyResource.findMany({ where: { organisationId: user.organisationId }, orderBy: [{ status: 'asc' }, { reviewDueAt: 'asc' }] });
+  } catch { return []; }
+}
+
+export async function getCrmStaffOptions() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.user.findMany({ where: { organisationId: user.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  } catch { return []; }
+}
+
+export async function getCrmPropertyOptions() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.property.findMany({ where: { organisationId: user.organisationId }, select: { id: true, publicName: true, serviceType: true }, orderBy: { publicName: 'asc' } });
+  } catch { return []; }
+}
+
+/** Everything the operations dashboard, calendar and module pages need, in one round of queries.
+ * Domain summaries are computed here so pages stay presentational. */
+export async function getCrmOperationsBoard(now = new Date()) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const organisationId = user.organisationId;
+  try {
+    const [appointments, tickets, concerns, complaints, complianceRecords, policies, tasks, clients, contactNotes, safeWellChecks] = await Promise.all([
+      db.appointment.findMany({ where: { organisationId }, select: { id: true, title: true, startsAt: true, endsAt: true, status: true, category: true, ownerId: true, clientId: true, propertyId: true } }),
+      db.maintenanceTicket.findMany({ where: { organisationId }, select: { id: true, status: true, reportedAt: true, completedAt: true, priority: true, category: true, safetyRisk: true, targetFixAt: true } }),
+      db.concern.findMany({ where: { organisationId }, select: { id: true, status: true, raisedAt: true, dueAt: true, resolvedAt: true, severity: true, category: true } }),
+      db.complaint.findMany({ where: { organisationId }, select: { id: true, status: true, stage: true, category: true, receivedAt: true, acknowledgedAt: true, dueAt: true, closedAt: true, outcome: true, learning: true } }),
+      db.propertyComplianceRecord.findMany({ where: { property: { organisationId } }, select: { id: true, propertyId: true, status: true, complianceType: true, lastCheckedAt: true, nextDueAt: true } }),
+      db.policyResource.findMany({ where: { organisationId }, select: { id: true, status: true, category: true, effectiveFrom: true, reviewDueAt: true, requiresRead: true } }),
+      db.task.findMany({ where: { organisationId }, select: { id: true, title: true, status: true, priority: true, dueAt: true, assignedToId: true, department: true, category: true, clientId: true, completedAt: true } }),
+      db.client.findMany({ where: { organisationId }, select: { id: true, displayName: true, restricted: true, status: true, keyWorkerId: true, riskLevel: true, contactFrequencyDays: true, safeWellFrequencyDays: true } }),
+      db.caseNote.findMany({ where: { client: { organisationId }, completed: true, meaningful: true }, select: { clientId: true, occurredAt: true } }),
+      db.safeWellCheck.findMany({ where: { client: { organisationId }, status: { in: ['COMPLETED', 'CONCERN_RAISED'] } }, select: { clientId: true, completedAt: true } })
+    ]);
+
+    // The contact query is already limited to notes that count as support, so the newest one is
+    // the last planned contact that actually happened.
+    const lastContact = new Map<string, Date>();
+    for (const note of contactNotes) {
+      const previous = lastContact.get(note.clientId);
+      if (!previous || note.occurredAt.getTime() > previous.getTime()) lastContact.set(note.clientId, note.occurredAt);
+    }
+    const lastSafeWell = new Map<string, Date>();
+    for (const check of safeWellChecks) {
+      if (!check.completedAt) continue;
+      const previous = lastSafeWell.get(check.clientId);
+      if (!previous || check.completedAt.getTime() > previous.getTime()) lastSafeWell.set(check.clientId, check.completedAt);
+    }
+    const openTaskCount = new Map<string, number>();
+    const overdueTaskCount = new Map<string, number>();
+    for (const task of tasks) {
+      if (!task.clientId || isTaskClosed(task.status)) continue;
+      openTaskCount.set(task.clientId, (openTaskCount.get(task.clientId) ?? 0) + 1);
+      if (isTaskOverdue(task)) overdueTaskCount.set(task.clientId, (overdueTaskCount.get(task.clientId) ?? 0) + 1);
+    }
+
+    const attentionRows = buildServiceUserAttention(clients.map((client) => ({
+      clientId: client.id,
+      displayName: client.displayName,
+      restricted: client.restricted,
+      status: client.status,
+      keyWorkerId: client.keyWorkerId,
+      riskLevel: client.riskLevel,
+      contactFrequencyDays: client.contactFrequencyDays,
+      safeWellFrequencyDays: client.safeWellFrequencyDays,
+      lastSupportContactAt: lastContact.get(client.id) ?? null,
+      lastSafeWellCompletedAt: lastSafeWell.get(client.id) ?? null,
+      openTasks: openTaskCount.get(client.id) ?? 0,
+      overdueTasks: overdueTaskCount.get(client.id) ?? 0
+    })), now);
+
+    const calendarEntries = buildCalendarEntries({ appointments: appointments as CalendarAppointment[], tasks, now });
+    const weekStart = startOfWeek(now);
+    const calendarDays = buildCalendarWeek(calendarEntries, weekStart, 7, now);
+
+    return {
+      appointments: summariseAppointments(appointments as CalendarAppointment[], now),
+      maintenance: summariseMaintenance(tickets, now),
+      concerns: summariseConcerns(concerns, now),
+      complaints: summariseComplaints(complaints, now),
+      compliance: summariseCompliance(complianceRecords, now),
+      policies: summarisePolicies(policies, now),
+      tasks: summariseTaskQueue(tasks, now),
+      attention: summariseAttention(attentionRows),
+      attentionRows,
+      calendarEntries,
+      calendarDays,
+      calendarSummary: summariseCalendarWeek(calendarDays),
+      weekStart,
+      weekEnd: addDays(weekStart, 6)
+    };
+  } catch { return null; }
+}
+
+export async function getCrmClientOptions() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.client.findMany({ where: { organisationId: user.organisationId }, select: { id: true, displayName: true, reference: true, restricted: true }, orderBy: { displayName: 'asc' } });
+  } catch { return []; }
+}
+
+export async function getCrmClientProfile(clientId: string) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  try {
+    const profile = await db.client.findFirst({
+      where: { id: clientId, organisationId: user.organisationId },
+      include: {
+        service: true,
+        keyWorker: { select: { id: true, name: true } },
+        supportWorker: { select: { id: true, name: true } },
+        referral: { select: { id: true, reference: true, createdAt: true, status: true, referrerOrganisation: true } },
+        placements: { include: { property: true }, orderBy: { startDate: 'desc' } },
+        supportPlans: { include: { goals: true, reviews: { orderBy: { reviewDate: 'desc' }, take: 3 } }, orderBy: { createdAt: 'desc' } },
+        caseNotes: { orderBy: { occurredAt: 'desc' }, take: 20 },
+        housingBenefit: true,
+        penPortrait: true,
+        riskAssessments: { orderBy: { assessedAt: 'desc' }, take: 10 },
+        safeWellChecks: { orderBy: [{ scheduledFor: 'desc' }, { createdAt: 'desc' }], take: 10 },
+        moveChecklists: { include: { items: { orderBy: { sortOrder: 'asc' } } }, orderBy: { createdAt: 'desc' }, take: 5 },
+        relationshipsFrom: { include: { relatedClient: { select: clientRefSelect }, relatedPerson: true }, orderBy: { createdAt: 'desc' } },
+        relationshipsTo: { include: { client: { select: clientRefSelect }, relatedPerson: true }, orderBy: { createdAt: 'desc' } },
+        documents: { orderBy: { createdAt: 'desc' }, take: 25 },
+        incidents: { include: { actions: { orderBy: { dueDate: 'asc' } }, assignedLead: { select: { id: true, name: true } } }, orderBy: { incidentAt: 'desc' }, take: 20 },
+        appointments: { orderBy: { startsAt: 'desc' }, take: 10 },
+        maintenanceTickets: { orderBy: { reportedAt: 'desc' }, take: 10 },
+        concerns: { orderBy: { raisedAt: 'desc' }, take: 10 },
+        complaints: { orderBy: { receivedAt: 'desc' }, take: 10 },
+        tasks: { where: { status: { notIn: ['DONE', 'CANCELLED'] } }, orderBy: { dueAt: 'asc' }, take: 10 }
+      }
+    });
+    if (!profile) return null;
+    // Documents record the uploader's account id. One extra query resolves the names so the profile
+    // can show who filed each file without exposing anything else about those accounts.
+    const uploaderIds = [...new Set(profile.documents.map((document) => document.uploadedBy))];
+    const uploaders = uploaderIds.length
+      ? await db.user.findMany({ where: { id: { in: uploaderIds }, organisationId: user.organisationId }, select: { id: true, name: true } })
+      : [];
+    return { ...profile, documentUploaders: Object.fromEntries(uploaders.map((uploader) => [uploader.id, uploader.name])) as Record<string, string> };
+  } catch { return null; }
 }

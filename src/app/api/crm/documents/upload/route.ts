@@ -15,11 +15,24 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) return NextResponse.json({ error: 'Choose a document to upload.' }, { status: 400 });
     const category = String(form.get('category') ?? '').trim();
     if (!category || category.length > 80) return NextResponse.json({ error: 'Choose a document category.' }, { status: 400 });
+    // Free text in the filer's own words. It is shown on the client profile and in the document
+    // register, so it is length-limited but never used for narrative or case-note detail.
+    const description = String(form.get('description') ?? '').trim();
+    if (description.length > 500) return NextResponse.json({ error: 'Keep the document description under 500 characters.' }, { status: 400 });
+    // The date on the paper itself, which staff often need to differ from the upload date.
+    const documentDateValue = String(form.get('documentDate') ?? '').trim();
+    const documentDate = documentDateValue ? new Date(documentDateValue) : undefined;
+    if (documentDate && Number.isNaN(documentDate.getTime())) return NextResponse.json({ error: 'Enter a valid document date.' }, { status: 400 });
+    const clientId = String(form.get('clientId') ?? '').trim();
+    if (clientId) {
+      const client = await db.client.findFirst({ where: { id: clientId, organisationId: user.organisationId } });
+      if (!client) return NextResponse.json({ error: 'Choose a client from your organisation.' }, { status: 400 });
+    }
     const restricted = form.get('restricted') === 'on';
     const stored = await storePrivateDocument(file);
     let document;
     try {
-      document = await db.document.create({ data: { organisationId: user.organisationId, displayName: stored.displayName, storageKey: stored.storageKey, mimeType: stored.mimeType, sizeBytes: stored.sizeBytes, sha256: stored.sha256, malwareScanStatus: stored.malwareScanStatus, malwareScannedAt: stored.malwareScannedAt, category, restricted, uploadedBy: user.id } });
+      document = await db.document.create({ data: { organisationId: user.organisationId, clientId: clientId || undefined, displayName: stored.displayName, storageKey: stored.storageKey, mimeType: stored.mimeType, sizeBytes: stored.sizeBytes, sha256: stored.sha256, malwareScanStatus: stored.malwareScanStatus, malwareScannedAt: stored.malwareScannedAt, category, description: description || undefined, documentDate, restricted, uploadedBy: user.id } });
     } catch (error) {
       await removePrivateDocument(stored.storageKey).catch(() => undefined);
       throw error;
