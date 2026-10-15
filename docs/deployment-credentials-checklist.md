@@ -45,7 +45,11 @@ and token when running more than one application instance.
 ## Release checks
 
 1. Run `npm run check:production-config`; every required check must be OK.
-2. Apply migrations with `npm run db:migrate:deploy`; never run `npm run db:seed` in production.
-3. Create the first administrator with `npm run bootstrap:admin`.
+2. Apply migrations with `npm run db:migrate:deploy`; never run `npm run db:seed` in production, and
+   never during an upgrade of an existing installation.
+3. **Fresh installations only:** create the first administrator with `npm run bootstrap:admin`. It is
+   used only when creating the first organisation/administrator for a completely new SafeNest
+   installation. **DO NOT run it when upgrading an existing populated installation** — existing
+   organisations, administrator accounts and authentication records must be preserved.
 4. Follow `docs/deployment-hostinger.md`, then verify `/health`, login, tenant isolation, uploads,
    email, audit logging, backups, and public confidentiality behaviour.

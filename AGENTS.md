@@ -8,7 +8,7 @@
 - `npm run test` runs domain and validation tests.
 - `npm run db:migrate` creates the local Prisma database.
 - `npm run db:seed` inserts fictional development data; it must never run automatically in production.
-- `npm run bootstrap:admin -- --email=... --name=...` creates the real RBAC scaffolding and exactly one real administrator for production, without any fictional data. See `scripts/bootstrap-admin.ts`.
+- `npm run bootstrap:admin -- --email=... --name=...` creates the real RBAC scaffolding and exactly one real administrator, without any fictional data. Fresh installations only: never run it when upgrading an existing populated installation, and never run `npm run db:seed`, `prisma migrate reset`, or `prisma db push --force-reset` against production. See `scripts/bootstrap-admin.ts`.
 - `npm run build` creates the server-rendered production build.
 - `npm run test:e2e` runs the Playwright suite (public flow + full staff login/CRM workflows); it starts its own dev server against the local dev database.
 

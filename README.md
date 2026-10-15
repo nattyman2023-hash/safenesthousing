@@ -40,7 +40,7 @@ npm run build
 - `prisma/schema.prisma` - relational domain schema.
 - `prisma/seed.ts` - idempotent fictional development data (never run in production).
 - `prisma/rbac-definitions.ts` - compatibility metadata used by seed/bootstrap tooling; it is not a runtime access gate.
-- `scripts/bootstrap-admin.ts` - creates the real bootstrap records and exactly one real administrator for production.
+- `scripts/bootstrap-admin.ts` - creates the real bootstrap records and exactly one real administrator for a brand-new installation only (never during an upgrade of an existing populated installation, which must keep its existing organisations, administrators, and authentication records).
 - `docs/` - architecture, data model, security, privacy, testing, deployment, and operations guidance.
 
 ## Access model

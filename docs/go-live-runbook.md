@@ -24,8 +24,13 @@ Complete these steps before entering real resident or safeguarding information:
 
 1. Set strong `AUTH_SECRET`, `FILE_SIGNING_SECRET`, and `RETENTION_REVIEW_SECRET` values.
 2. Use a persistent production database and apply migrations with `npm run db:migrate:deploy`.
-   Never run `npm run db:seed` in production; create the first administrator with
-   `npm run bootstrap:admin`.
+   Production upgrades must never run `db:seed`.
+   **Fresh installations only:** create the first administrator with `npm run bootstrap:admin`. It is
+   used only when creating the first organisation/administrator for a completely new SafeNest
+   installation. **DO NOT run it when upgrading an existing populated installation** — existing
+   organisations, administrator accounts and authentication records must be preserved. See the upgrade
+   rules in
+   [deployment-hostinger.md](deployment-hostinger.md#upgrading-an-existing-populated-installation).
 3. Set `APP_URL` to the HTTPS origin and terminate TLS at the domain or proxy.
 4. Configure private persistent storage outside the public web root, or S3-compatible storage.
 5. Configure Emailit or SMTP for referral confirmations and password resets.

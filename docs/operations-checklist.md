@@ -3,7 +3,7 @@
 Before launch:
 
 - [ ] Production Node, database, private-storage, email, malware-scanner, and rate-limit settings are configured through protected environment/secrets.
-- [ ] The first administrator is created with `npm run bootstrap:admin`; `npm run db:seed` is never used for production.
+- [ ] For a brand-new installation, the first administrator is created with `npm run bootstrap:admin`. **DO NOT run that command when upgrading an existing populated installation** — existing organisations, administrator accounts and authentication records must be preserved. `npm run db:seed` is never used for production, and production upgrades never seed, reset, or force-push.
 - [ ] HTTPS, reverse proxy, process restart, health checks, and log rotation are confirmed.
 - [ ] `npm run check:production-config` passes and `/health` returns HTTP 200 after startup.
 - [ ] `npm audit --omit=dev` passes with the approved production dependency policy.
