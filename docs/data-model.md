@@ -93,6 +93,26 @@ Columns added to existing records:
 | PropertyComplianceRecord | Statutory compliance item for one property | `complianceType`, `status`, `lastCheckedAt`, `nextDueAt`, `certificateRef`, `contractor`, `outcome`, `notes` | Certificate reference and outcome | Organisation staff; interval rules live in `lib/compliance-domain.ts` |
 | PolicyResource | Policy, procedure or resource in the staff register | `title`, `category`, `summary`, `version`, `documentId`, `externalUrl`, `status`, `ownerId`, `effectiveFrom`, `reviewDueAt`, `requiresRead` | Linked private document or external link | Organisation staff; review due date drives the governance view |
 
+## Placement lifecycle and corrections
+
+`Placement.status` is the single source of truth for where a person lives, and it is written only
+through the transition rules in `lib/placement-lifecycle.ts`:
+
+| Status | Meaning | Notes |
+|---|---|---|
+| `ACTIVE` | The person lives here now | An `ACTIVE` placement with an agreed future end date is presented as a temporary placement |
+| `MOVED_OUT` | The stay ended and the person moved on | Keeps the historical record; can be reopened while the room is free |
+| `CANCELLED` | The placement was cancelled before or after it started | Still history, and still kept |
+| `ENTERED_IN_ERROR` | The record was created by mistake and corrected | Terminal: the record, its audit trail and any work recorded against it are kept, while it stops counting as a current placement |
+
+Room availability is derived from `OccupancyRecord` rows rather than set by hand: an occupancy row
+whose related placement is `ENTERED_IN_ERROR` never reserves a room. Removing an incorrect placement
+(`lib/placement-lifecycle.ts` → `placementRemovalPlan`) deletes the placement and its own occupancy
+rows only when nothing was worked against it; otherwise the record is marked `ENTERED_IN_ERROR`.
+`AuditLog` rows `PLACEMENT_UPDATED`, `PLACEMENT_ENDED`, `PLACEMENT_REACTIVATED`,
+`PLACEMENT_REMOVED_IN_ERROR` and `PLACEMENT_MARKED_ENTERED_IN_ERROR` record every such change, and the
+last two carry the mandatory reason.
+
 ## Key relationships
 
 **The service user is the hub.** `Client` is referenced by `Placement` and `OccupancyRecord` (where the

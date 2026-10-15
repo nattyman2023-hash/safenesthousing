@@ -12,7 +12,8 @@ export function ClickableRow({ href, children, ...rest }: { href: string; childr
       {...rest}
       onClick={(event) => {
         const target = event.target as HTMLElement;
-        if (target.closest('a, button, select, input, textarea, label')) return;
+        // `summary` covers disclosure menus inside a row: the menu must open, not navigate.
+        if (target.closest('a, button, select, input, textarea, label, summary')) return;
         router.push(href);
       }}
       style={{ cursor: 'pointer', ...rest.style }}

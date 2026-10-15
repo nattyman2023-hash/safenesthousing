@@ -57,6 +57,28 @@ export function hasRotaOverlap(records: Array<{ startsAt: Date; endsAt: Date }>,
  * and tests keep one import path. Cancelled work is never overdue. */
 export { isTaskOverdue } from './task-workflow';
 
+/** Placement lifecycle rules live in the placement-lifecycle module; re-exported here so status
+ * changes keep one import path, the same way referral transitions do. */
+export {
+  assertPlacementTransition,
+  canTransitionPlacement,
+  isCurrentPlacement,
+  isEnteredInError,
+  isHistoricalPlacementKind,
+  isPlacementStatus,
+  nextPlacementStatuses,
+  placementLifecycleKind,
+  placementLifecycleLabel,
+  placementRemovalPlan,
+  PLACEMENT_STATUSES
+} from './placement-lifecycle';
+export type { PlacementLifecycleKind, PlacementRemovalPlan, PlacementStatus } from './placement-lifecycle';
+
+/** A support-plan review is overdue once its review date has passed, whatever else the plan says. */
+export function isSupportPlanReviewOverdue(reviewDate: Date | null | undefined, now = new Date()): boolean {
+  return !!reviewDate && reviewDate.getTime() < now.getTime();
+}
+
 export function invoiceTotal(items: Array<{ quantity: number; unitMinor: number }>): number {
   return items.reduce((total, item) => total + item.quantity * item.unitMinor, 0);
 }

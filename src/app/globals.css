@@ -350,6 +350,26 @@ h3 { font-size: 1.35rem; }
 .relationship-editor .inline-control { margin-top: 9px; align-items: flex-start; }
 .relationship-editor .inline-control > .timeline-meta { flex-basis: 100%; margin-top: 0; }
 .relationship-editor .checkbox-row { font-size: 10px; }
+/* Placement lifecycle controls: the destructive action only appears on the final confirmation. */
+.placement-actions { display: grid; gap: 2px; }
+.placement-actions > .form-success, .placement-actions > .form-error { margin-bottom: 10px; }
+.crm-button-danger { border-color: var(--danger); background: var(--danger); color: #fff; }
+.crm-button-danger:hover { background: #97202a; }
+.confirm-dialog { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(8,23,33,.55); }
+.confirm-dialog-panel { width: min(560px, 100%); max-height: 88vh; overflow: auto; padding: 22px; border: 1px solid #dfe8e8; background: #fff; box-shadow: var(--shadow-md); }
+.confirm-dialog-panel h2 { margin: 0 0 10px; color: var(--navy-900); font-family: Arial, sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0; }
+.confirm-dialog-panel p { color: var(--muted); font-size: 11px; }
+.confirm-dialog-reasons { margin: 0 0 14px; padding-left: 18px; color: var(--muted); font-size: 11px; }
+.confirm-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+/* Row-level disclosure menu for table actions. In flow, not floating, so a scrollable table
+   wrapper can never clip it. */
+.row-actions { margin: 0; }
+.row-actions > summary { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; border: 1px solid #cfdadb; border-radius: 4px; background: #fff; color: var(--muted); cursor: pointer; list-style: none; font-size: 13px; line-height: 1; }
+.row-actions > summary::-webkit-details-marker { display: none; }
+.row-actions[open] > summary { border-color: var(--teal-500); color: var(--teal-700); }
+.row-actions-menu { display: grid; min-width: 190px; margin-top: 5px; padding: 5px; border: 1px solid #dfe8e8; background: #fff; box-shadow: var(--shadow-sm); }
+.row-actions-menu a { padding: 7px 9px; color: var(--navy-800); font-size: 10px; font-weight: 700; }
+.row-actions-menu a:hover { background: var(--teal-100); color: var(--teal-700); }
 .crm-stack { display: grid; gap: 18px; }
 .crm-split { display: grid; grid-template-columns: 1.3fr .7fr; gap: 18px; align-items: start; }
 .form-card + .filter-bar, .crm-page > .filter-bar { margin-top: 22px; }

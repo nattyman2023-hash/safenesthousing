@@ -143,6 +143,26 @@ export const placementStatusSchema = z.object({
   endDate: z.preprocess((value) => value === '' ? undefined : value, z.string().trim().optional())
 });
 
+/** Optional fields so one endpoint can take a status change, an ordinary edit, or both.
+ * `endDate` keeps the empty string distinct from "not sent": an empty value clears the date on an
+ * active placement, while omitting it leaves the stored date alone. */
+export const placementUpdateSchema = z.object({
+  status: z.enum(['ACTIVE', 'MOVED_OUT', 'CANCELLED']).optional(),
+  endDate: z.string().trim().max(40).optional(),
+  endedReason: z.string().trim().max(240).optional(),
+  startDate: z.string().trim().max(40).optional(),
+  tenancyRef: z.string().trim().max(160).optional(),
+  propertyId: z.string().trim().min(1).max(120).optional(),
+  roomId: z.string().trim().min(1).max(120).optional()
+}).refine((value) => Object.values(value).some((entry) => entry !== undefined), { message: 'Send the placement field you want to change.' });
+
+/** Removing an incorrect placement: a confirmation plus a reason is required, and the reason is
+ * written to the audit log, so a duplicate is always traceable to the person who corrected it. */
+export const placementRemovalSchema = z.object({
+  reason: z.string().trim().min(5, 'Record why this placement is being removed.').max(240),
+  confirmed: flagValue.refine((value) => value === true, { message: 'Confirm the removal before it is applied.' })
+});
+
 export const userInviteSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(160),

@@ -7,6 +7,7 @@ import { summariseComplaints } from './complaints-domain';
 import { summariseCompliance, summarisePolicies } from './compliance-domain';
 import { summariseConcerns } from './concerns-domain';
 import { isContactLogNote } from './contact-tracking';
+import { inspectPlacementDependencies } from './placement-operations';
 import { buildCalendarEntries, buildCalendarWeek, buildServiceUserAttention, summariseAttention, summariseCalendarWeek } from './dashboard-domain';
 import { summariseMaintenance } from './operations-domain';
 import { isTaskClosed, summariseTaskQueue } from './task-workflow';
@@ -398,7 +399,13 @@ export async function getCrmClientProfile(clientId: string) {
         keyWorker: { select: { id: true, name: true } },
         supportWorker: { select: { id: true, name: true } },
         referral: { select: { id: true, reference: true, createdAt: true, status: true, referrerOrganisation: true } },
-        placements: { include: { property: true }, orderBy: { startDate: 'desc' } },
+        placements: {
+          include: {
+            property: { select: { id: true, publicName: true, neighbourhood: true, confidential: true, rooms: { select: { id: true, label: true, status: true }, orderBy: { label: 'asc' } } } },
+            occupancyRecords: { select: { id: true, startDate: true, endDate: true } }
+          },
+          orderBy: { startDate: 'desc' }
+        },
         supportPlans: { include: { goals: true, reviews: { orderBy: { reviewDate: 'desc' }, take: 3 } }, orderBy: { createdAt: 'desc' } },
         caseNotes: { orderBy: { occurredAt: 'desc' }, take: 20 },
         housingBenefit: true,
@@ -409,6 +416,9 @@ export async function getCrmClientProfile(clientId: string) {
         relationshipsFrom: { include: { relatedClient: { select: clientRefSelect }, relatedPerson: true }, orderBy: { createdAt: 'desc' } },
         relationshipsTo: { include: { client: { select: clientRefSelect }, relatedPerson: true }, orderBy: { createdAt: 'desc' } },
         documents: { orderBy: { createdAt: 'desc' }, take: 25 },
+        // The list above is capped so the profile stays fast, so the metric reads the real total
+        // from its own count rather than from the length of the capped list.
+        _count: { select: { documents: true } },
         incidents: { include: { actions: { orderBy: { dueDate: 'asc' } }, assignedLead: { select: { id: true, name: true } } }, orderBy: { incidentAt: 'desc' }, take: 20 },
         appointments: { orderBy: { startsAt: 'desc' }, take: 10 },
         maintenanceTickets: { orderBy: { reportedAt: 'desc' }, take: 10 },
@@ -427,3 +437,66 @@ export async function getCrmClientProfile(clientId: string) {
     return { ...profile, documentUploaders: Object.fromEntries(uploaders.map((uploader) => [uploader.id, uploader.name])) as Record<string, string> };
   } catch { return null; }
 }
+
+/** The placement register: every placement the organisation holds, with the property, room and
+ * occupancy rows the list needs to describe it. Ordered newest first so a new move-in is visible. */
+export async function getCrmPlacements() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.placement.findMany({
+      where: { client: { organisationId: user.organisationId } },
+      include: {
+        client: { select: { id: true, reference: true, displayName: true, restricted: true } },
+        property: { select: { id: true, publicName: true, rooms: { select: { id: true, label: true, status: true } } } },
+        occupancyRecords: { select: { id: true, startDate: true, endDate: true } }
+      },
+      orderBy: { startDate: 'desc' }
+    });
+  } catch { return []; }
+}
+
+/**
+ * One placement, with the records the detail page needs to be an operational record rather than a
+ * page of ids: the room, the move checklists worked against this stay, and the Safe & Well, incident,
+ * repair, document, appointment and task records that belong to the same service user. Everything is
+ * scoped to the signed-in user's organisation, so another organisation's placement is a real 404.
+ */
+export async function getCrmPlacement(placementId: string) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  try {
+    const placement = await db.placement.findFirst({
+      where: { id: placementId, client: { organisationId: user.organisationId } },
+      include: {
+        client: {
+          select: {
+            id: true, reference: true, displayName: true, restricted: true, status: true, riskLevel: true,
+            safeguardingFlag: true, contactFrequencyDays: true, admissionDate: true,
+            keyWorker: { select: { id: true, name: true } },
+            supportWorker: { select: { id: true, name: true } },
+            housingBenefit: { orderBy: { submittedAt: 'desc' }, take: 1 }
+          }
+        },
+        property: { select: { id: true, publicName: true, neighbourhood: true, serviceType: true, confidential: true, capacity: true } },
+        occupancyRecords: { orderBy: { startDate: 'desc' } }
+      }
+    });
+    if (!placement) return null;
+    const now = new Date();
+    const [room, checklists, safeWellChecks, incidents, maintenanceTickets, documents, documentCount, appointments, tasks, dependencies] = await Promise.all([
+      db.room.findFirst({ where: { id: placement.roomId }, select: { id: true, label: true, status: true, notes: true } }),
+      db.moveChecklist.findMany({ where: { placementId: placement.id }, include: { items: { orderBy: { sortOrder: 'asc' } } }, orderBy: { createdAt: 'desc' } }),
+      db.safeWellCheck.findMany({ where: { clientId: placement.clientId }, orderBy: [{ scheduledFor: 'desc' }, { createdAt: 'desc' }], take: 5, select: { id: true, status: true, method: true, scheduledFor: true, completedAt: true, concernRaised: true, concernSummary: true, nextDueAt: true } }),
+      db.incident.findMany({ where: { organisationId: user.organisationId, clientId: placement.clientId }, orderBy: { incidentAt: 'desc' }, take: 5, select: { id: true, reference: true, category: true, severity: true, status: true, incidentAt: true, restricted: true } }),
+      db.maintenanceTicket.findMany({ where: { organisationId: user.organisationId, OR: [{ clientId: placement.clientId }, { roomId: placement.roomId }] }, orderBy: { reportedAt: 'desc' }, take: 5, select: { id: true, reference: true, title: true, status: true, priority: true, reportedAt: true } }),
+      db.document.findMany({ where: { clientId: placement.clientId }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, displayName: true, category: true, createdAt: true, restricted: true } }),
+      db.document.count({ where: { clientId: placement.clientId } }),
+      db.appointment.findMany({ where: { organisationId: user.organisationId, clientId: placement.clientId, startsAt: { gte: now } }, orderBy: { startsAt: 'asc' }, take: 5, select: { id: true, title: true, category: true, startsAt: true, status: true } }),
+      db.task.findMany({ where: { organisationId: user.organisationId, clientId: placement.clientId, status: { notIn: ['DONE', 'CANCELLED'] } }, orderBy: { dueAt: 'asc' }, take: 5, select: { id: true, title: true, dueAt: true, priority: true, status: true, relatedType: true, relatedId: true } }),
+      inspectPlacementDependencies({ id: placement.id, clientId: placement.clientId })
+    ]);
+    return { ...placement, room, checklists, safeWellChecks, incidents, maintenanceTickets, documents, documentCount, appointments, tasks, dependencies };
+  } catch { return null; }
+}
+

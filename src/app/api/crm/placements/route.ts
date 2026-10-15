@@ -3,6 +3,7 @@ import { audit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth';
 import { placementCreateSchema } from '@/lib/crm-validation';
 import { hasOccupancyOverlap } from '@/lib/domain';
+import { placementBackedOccupancy } from '@/lib/placement-operations';
 import { db } from '@/lib/db';
 
 export async function POST(request: Request) {
@@ -18,8 +19,8 @@ export async function POST(request: Request) {
     if (!property) return NextResponse.json({ error: 'Choose a property from your organisation.' }, { status: 400 });
     const room = await db.room.findFirst({ where: { id: parsed.data.roomId, propertyId: property.id } });
     if (!room) return NextResponse.json({ error: 'Choose a room from the selected property.' }, { status: 400 });
-    const existingRoomRecords = await db.occupancyRecord.findMany({ where: { roomId: room.id }, select: { startDate: true, endDate: true } });
-    const existingClientRecords = await db.occupancyRecord.findMany({ where: { clientId: client.id }, select: { startDate: true, endDate: true } });
+    const existingRoomRecords = await db.occupancyRecord.findMany({ where: { roomId: room.id, placement: placementBackedOccupancy }, select: { startDate: true, endDate: true } });
+    const existingClientRecords = await db.occupancyRecord.findMany({ where: { clientId: client.id, placement: placementBackedOccupancy }, select: { startDate: true, endDate: true } });
     if (hasOccupancyOverlap(existingRoomRecords, startDate, null)) return NextResponse.json({ error: 'This room already has an overlapping occupancy record.' }, { status: 409 });
     if (hasOccupancyOverlap(existingClientRecords, startDate, null)) return NextResponse.json({ error: 'This client already has an overlapping placement.' }, { status: 409 });
     const result = await db.$transaction(async (tx) => {

@@ -9,6 +9,8 @@ import { ClientDocumentUploadForm } from '@/components/ClientDocumentUploadForm'
 import { ClientRelationshipForm } from '@/components/ClientRelationshipForm';
 import { ClientRelationshipEditor } from '@/components/ClientRelationshipEditor';
 import { buildClientProfileTimeline, caseNoteTimelineKind } from '@/lib/client-profile';
+import { isCurrentPlacement, placementLifecycleKind, placementLifecycleLabel } from '@/lib/placement-lifecycle';
+import { isSupportPlanReviewOverdue } from '@/lib/domain';
 import { buildClientRelationshipViews, relationshipOptions } from '@/lib/client-relationships';
 import { groupTimelineByDay, summariseTimeline, timelineDayLabel } from '@/lib/su-timeline';
 import { requiresContactEscalation, summariseContacts } from '@/lib/contact-tracking';
@@ -44,7 +46,11 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
   const timeline = buildClientProfileTimeline({ ...client, client: { id: client.id, reference: client.reference, displayName: client.displayName, restricted: client.restricted, status: client.status, createdAt: client.createdAt, admissionDate: client.admissionDate } }, { limit: TIMELINE_LIMIT });
   const timelineSummary = summariseTimeline(timeline);
   const timelineDays = groupTimelineByDay(timeline);
-  const placement = client.placements[0];
+  // The placement the person is in now is an ACTIVE record. Everything else — ended, cancelled, or
+  // marked entered in error — is history, so it can never be mistaken for where they live.
+  const currentPlacement = client.placements.find((item) => isCurrentPlacement(item.status));
+  const placementHistory = client.placements.filter((item) => item.id !== currentPlacement?.id);
+  const placementRoomLabel = (entry: (typeof client.placements)[number]) => entry.property.rooms.find((room) => room.id === entry.roomId)?.label ?? 'Room not recorded';
   const plan = client.supportPlans[0];
   const latestRisk = client.riskAssessments[0];
   const penPortrait = client.penPortrait;
@@ -64,16 +70,42 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
     />
     {client.restricted && <RestrictedNote />}
     <div className="metric-grid">
-      <div className="metric-card metric-teal"><div className="metric-top"><span>Placement</span></div><strong style={{ fontSize: 20 }}>{placement?.property?.publicName ?? 'Waitlist'}</strong><p>{placement ? `Started ${formatDate(placement.startDate)}` : 'No placement started'}</p></div>
+      <div className="metric-card metric-teal"><div className="metric-top"><span>Placement</span></div><strong style={{ fontSize: 20 }}>{currentPlacement?.property?.publicName ?? 'No current placement'}</strong><p>{currentPlacement ? `Started ${formatDate(currentPlacement.startDate)}` : 'No placement started'}</p></div>
       <div className="metric-card metric-red"><div className="metric-top"><span>Risk level</span></div><strong style={{ fontSize: 20 }}>{client.riskLevel}</strong><p>{latestRisk ? `Last assessment ${formatDate(latestRisk.assessedAt)}` : 'No risk assessment on file'}</p></div>
-      <div className="metric-card metric-gold"><div className="metric-top"><span>Support plan</span></div><strong style={{ fontSize: 20 }}>{plan ? plan.status.replace(/_/g, ' ').toLowerCase() : 'Needs setup'}</strong><p>{plan?.reviewDate ? `Review ${formatDate(plan.reviewDate)}` : 'No review date set'}</p></div>
+      <div className="metric-card metric-gold"><div className="metric-top"><span>Support plan</span></div><strong style={{ fontSize: 20 }}>{plan ? plan.status.replace(/_/g, ' ').toLowerCase() : 'Needs setup'}</strong><p>{plan?.reviewDate ? `Review ${formatDate(plan.reviewDate)}` : 'No review date set'}</p>{isSupportPlanReviewOverdue(plan?.reviewDate) && <p><span className="crm-badge badge-danger">Review overdue</span></p>}</div>
       <div className="metric-card metric-blue"><div className="metric-top"><span>Safe &amp; Well</span></div><strong style={{ fontSize: 20 }}>{lastSafeWell?.completedAt ? formatDate(lastSafeWell.completedAt) : 'Never completed'}</strong><p>{nextSafeWell?.nextDueAt ? `Next due ${formatDate(nextSafeWell.nextDueAt)}` : `Every ${client.safeWellFrequencyDays} days`}</p></div>
     </div>
     <div className="metric-grid">
       <div className="metric-card"><div className="metric-top"><span>Contact compliance</span></div><strong style={{ fontSize: 20 }}>{contactSummary.state.replace(/_/g, ' ').toLowerCase()}</strong><p>{contactSummary.lastSupportContactAt ? `Last contact ${formatDate(contactSummary.lastSupportContactAt)} · ${contactSummary.daysSinceSupport} days ago` : 'No contact counted as support yet'}{contactSummary.dueAt ? ` · due ${formatDate(contactSummary.dueAt)}` : ''}</p></div>
-      <div className="metric-card metric-gold"><div className="metric-top"><span>Documents</span></div><strong style={{ fontSize: 20 }}>{client.documents.length}</strong><p>{client.documents[0] ? `Latest ${formatDate(client.documents[0].createdAt)} · ${client.documents[0].category}` : 'Nothing filed against this person'}</p></div>
+      <div className="metric-card metric-gold"><div className="metric-top"><span>Documents</span></div><strong style={{ fontSize: 20 }}>{client._count.documents}</strong><p>{client.documents[0] ? `Latest ${formatDate(client.documents[0].createdAt)} · ${client.documents[0].category}` : 'Nothing filed against this person'}{client._count.documents > client.documents.length ? ` · ${client.documents.length} most recent shown` : ''}</p></div>
       <div className="metric-card metric-red"><div className="metric-top"><span>Incidents</span></div><strong style={{ fontSize: 20 }}>{openIncidents.length}</strong><p>{client.incidents[0] ? `Latest ${client.incidents[0].reference} · ${formatDate(client.incidents[0].incidentAt)} · ${client.incidents[0].severity.toLowerCase()}` : 'No incidents recorded'}</p></div>
       <div className="metric-card metric-blue"><div className="metric-top"><span>Relationships</span></div><strong style={{ fontSize: 20 }}>{relationships.length}</strong><p>{relationships.filter((relationship) => relationship.isNextOfKin).length} next of kin · {relationships.filter((relationship) => relationship.isEmergencyContact).length} emergency contacts</p></div>
+    </div>
+    <div className="crm-split">
+      <section className="crm-panel">
+        <div className="panel-header"><h2>Current placement</h2>{currentPlacement ? <Link href={`/crm/placements/${currentPlacement.id}`}>Open placement →</Link> : <Link href="/crm/placements#new">Add placement →</Link>}</div>
+        <div className="panel-body">
+          {currentPlacement ? <dl className="detail-list">
+            <div><dt>Where</dt><dd><Link href={`/crm/placements/${currentPlacement.id}`}>{placementRoomLabel(currentPlacement)}, {currentPlacement.property.publicName}</Link></dd></div>
+            <div><dt>Started</dt><dd>{formatDate(currentPlacement.startDate)}</dd></div>
+            <div><dt>End date</dt><dd>{currentPlacement.endDate ? formatDate(currentPlacement.endDate) : 'Open-ended'}</dd></div>
+            <div><dt>Status</dt><dd><StatusBadge status={currentPlacement.status} tone="success" />{placementLifecycleKind(currentPlacement) === 'TEMPORARY' ? ' · temporary placement' : ''}</dd></div>
+            <div><dt>Tenancy</dt><dd>{currentPlacement.tenancyRef ?? NOT_RECORDED}</dd></div>
+          </dl> : <>
+            <p className="calendar-empty"><strong>No current placement.</strong> This person is not occupying a room. If a placement was created by mistake, correct it from the placement register so the history stays accurate.</p>
+            <Link className="crm-button crm-button-primary" href="/crm/placements#new">Add placement</Link>
+          </>}
+        </div>
+      </section>
+      <section className="crm-panel">
+        <div className="panel-header"><h2>Placement history</h2><span className="timeline-meta">{placementHistory.length} previous</span></div>
+        <div className="panel-list">
+          {placementHistory.length ? placementHistory.map((entry) => <div className="panel-list-item" key={entry.id}>
+            <strong><Link href={`/crm/placements/${entry.id}`}>{entry.property.publicName} · {placementRoomLabel(entry)}</Link></strong>
+            <span className="timeline-meta">{formatDate(entry.startDate)} → {entry.endDate ? formatDate(entry.endDate) : 'no end date recorded'} · {placementLifecycleLabel(placementLifecycleKind(entry))}</span>
+          </div>) : <p className="calendar-empty">No previous placements recorded.</p>}
+        </div>
+      </section>
     </div>
     <div className="crm-split">
       <section className="crm-panel">
@@ -111,7 +143,7 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
         </div>
       </section>
       <section className="crm-panel">
-        <div className="panel-header"><h2>Support plan goals</h2><a href="#support-plan">Add goal →</a></div>
+        <div className="panel-header"><h2>Support plan goals</h2><span className="badge-row">{isSupportPlanReviewOverdue(plan?.reviewDate) && <span className="crm-badge badge-danger">Review overdue</span>}<a href="#support-plan">Record a review →</a></span></div>
         <div className="panel-list">
           {plan?.goals.length ? plan.goals.map((goal) => <div className="panel-list-item" key={goal.id}>
             <strong>{goal.desiredOutcome}</strong>
@@ -227,7 +259,7 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
       </tbody></table> : <EmptyState title="No incidents" message="Incidents involving this person will appear here." />}
     </TableCard>
     <IncidentCreateForm clients={linkableClients} lockedClient={{ id: client.id, displayName: client.displayName, reference: client.reference }} />
-    <TableCard title="Documents" count={`${client.documents.length} filed`}>
+    <TableCard title="Documents" count={`${client._count.documents} filed`}>
       {client.documents.length ? <table className="crm-table"><thead><tr><th>Document</th><th>Description</th><th>Document date</th><th>Filed</th><th>Type &amp; size</th><th>Access</th><th>File</th></tr></thead><tbody>
         {client.documents.map((document) => <tr key={document.id}>
           <td><strong>{document.displayName}</strong><span className="timeline-meta">{document.category}</span></td>
@@ -239,6 +271,7 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
           <td><a href={`/api/crm/documents/${document.id}/download`}>Download</a></td>
         </tr>)}
       </tbody></table> : <EmptyState title="No documents" message="Files filed against this person will appear here." />}
+      {client._count.documents > client.documents.length && <p className="panel-body timeline-meta">Showing the {client.documents.length} most recent of {client._count.documents} documents. <Link href="/crm/documents">View all documents</Link>.</p>}
     </TableCard>
     <ClientDocumentUploadForm clientId={client.id} />
     <section className="crm-panel" id="contacts">

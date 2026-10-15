@@ -1,5 +1,6 @@
-import { buildServiceUserTimeline, type TimelineEntry, type TimelineEntryInput, type TimelineKind } from './su-timeline';
+﻿import { buildServiceUserTimeline, type TimelineEntry, type TimelineEntryInput, type TimelineKind } from './su-timeline';
 import { isContactLogNote, type ContactLogNote } from './contact-tracking';
+import { isEnteredInError } from './placement-lifecycle';
 
 /** One aggregated history for a service user profile: every dated event the CRM holds about the
  * person — referral, placement, support plan and review, risk assessment, contacts, case notes,
@@ -86,20 +87,20 @@ export function buildClientProfileTimeline(profile: ClientProfileTimelineInput, 
       kind: 'PLACEMENT',
       id: `placement-start-${placement.id}`,
       occurredAt: placement.startDate,
-      title: 'Placement started',
+      title: isEnteredInError(placement.status) ? 'Placement recorded in error' : 'Placement started',
       detail: placement.property?.publicName ?? 'Property not recorded',
       status: placement.status,
-      href: '/crm/placements'
+      href: `/crm/placements/${placement.id}`
     });
     if (placement.endDate) {
       entries.push({
         kind: 'PLACEMENT_END',
         id: `placement-end-${placement.id}`,
         occurredAt: placement.endDate,
-        title: 'Placement ended or moved on',
+        title: isEnteredInError(placement.status) ? 'Placement marked entered in error' : 'Placement ended or moved on',
         detail: placement.property?.publicName ?? null,
         status: placement.status,
-        href: '/crm/placements'
+        href: `/crm/placements/${placement.id}`
       });
     }
   }
