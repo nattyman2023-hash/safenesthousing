@@ -8,6 +8,7 @@ import { MOVE_CHECKLIST_TYPES, MOVE_ITEM_STATUSES } from './move-checklist';
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_PRIORITIES, MAINTENANCE_STATUSES, MAINTENANCE_TRADES } from './operations-domain';
 import { RISK_ASSESSMENT_STATUSES, RISK_ASSESSMENT_TYPES, RISK_LEVELS } from './risk-domain';
 import { SAFE_WELL_METHODS, SAFE_WELL_STATUSES } from './safe-well';
+import { SERVICE_SLUG_MAX_LENGTH, SERVICE_SLUG_PATTERN } from './service-slug';
 
 export const internalReferralSchema = z.object({
   personName: z.string().trim().min(2).max(160),
@@ -188,7 +189,10 @@ export const emailitApiKeySchema = z.object({ apiKey: z.string().trim().min(1, '
 
 const publishValue = z.preprocess((value) => value === true || value === 'true' || value === 'on', z.boolean());
 
-export const serviceContentSchema = z.object({
+/** The Service columns a content form owns. Held as one object so the create and update schemas can
+ * never drift from the edit form they both serve. In prisma/schema.prisma every one of these except
+ * `published` is NOT NULL, which is why the create schema requires all of them. */
+const serviceContentFields = {
   title: z.string().trim().min(2).max(160),
   summary: z.string().trim().min(10).max(500),
   content: z.string().trim().min(10).max(8000),
@@ -197,7 +201,39 @@ export const serviceContentSchema = z.object({
   eligibility: z.string().trim().min(5).max(2000),
   supportModel: z.string().trim().min(5).max(2000),
   published: publishValue
+};
+
+export const serviceContentSchema = z.object(serviceContentFields);
+
+/**
+ * A slug may be left blank, in which case the endpoint derives one from the service name
+ * (`serviceSlugFromTitle`). Supplying one is a deliberate correction, so it is normalised to lower
+ * case and held to the URL-safe pattern. Uniqueness is checked against the database rather than here:
+ * `@@unique([organisationId, slug])` is a two-column constraint no schema rule can see on its own.
+ */
+const serviceSlugInput = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().trim().toLowerCase().min(2, 'Add a slug, or leave the field blank to generate one from the service name.').max(SERVICE_SLUG_MAX_LENGTH).regex(SERVICE_SLUG_PATTERN, 'Use lower-case letters, numbers and single hyphens.').optional()
+);
+
+const serviceDisplayOrder = z.preprocess(
+  (value) => (value === '' || value === undefined ? undefined : value),
+  z.coerce.number().int().min(0).max(10000).optional()
+);
+
+/** Creating a service: every NOT NULL Service column, plus the optional slug and ordering. */
+export const serviceCreateSchema = z.object({
+  ...serviceContentFields,
+  slug: serviceSlugInput,
+  displayOrder: serviceDisplayOrder
 });
+
+/**
+ * Updating a service. Partial, and deliberately so: the publish toggle sends `{ published: false }`
+ * alone and a slug correction sends `{ slug }` alone. An absent field means "unchanged" — publication
+ * is never inferred from a missing key, which would silently unpublish a live service on every edit.
+ */
+export const serviceUpdateSchema = serviceCreateSchema.partial();
 
 export const newsContentSchema = z.object({
   title: z.string().trim().min(3).max(200),

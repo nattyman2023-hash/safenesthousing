@@ -40,6 +40,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     { label: 'Billing', href: '/crm/billing', icon: 'chart' },
     { label: 'Reports', href: '/crm/reports', icon: 'chart' },
     { label: 'Documents', href: '/crm/documents', icon: 'file' },
+    { label: 'Services', href: '/crm/settings/services', icon: 'clipboard' },
     { label: 'Content', href: '/crm/content', icon: 'file' },
     { label: 'Governance', href: '/crm/governance', icon: 'shield' },
     { label: 'Audit log', href: '/crm/audit', icon: 'shield' },

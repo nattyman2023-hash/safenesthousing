@@ -8,6 +8,7 @@ import { IncidentCreateForm } from '@/components/IncidentCreateForm';
 import { ClientDocumentUploadForm } from '@/components/ClientDocumentUploadForm';
 import { ClientRelationshipForm } from '@/components/ClientRelationshipForm';
 import { ClientRelationshipEditor } from '@/components/ClientRelationshipEditor';
+import { ClientStatusControl } from '@/components/ClientStatusControl';
 import { buildClientProfileTimeline, caseNoteTimelineKind } from '@/lib/client-profile';
 import { isCurrentPlacement, placementLifecycleKind, placementLifecycleLabel } from '@/lib/placement-lifecycle';
 import { isSupportPlanReviewOverdue } from '@/lib/domain';
@@ -126,6 +127,10 @@ export default async function ClientDetailPage(props: { params: Promise<{ id: st
             <div><dt>Housing Benefit</dt><dd>{benefit ? `${benefit.status.replace(/_/g, ' ').toLowerCase()}${benefit.submittedAt ? ` · submitted ${formatDate(benefit.submittedAt)}` : ''}` : NOT_RECORDED}</dd></div>
             <div><dt>Record created</dt><dd>{formatDate(client.createdAt)}</dd></div>
           </dl>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(15, 23, 42, 0.12)' }}>
+            <p className="timeline-meta" style={{ marginBottom: 8 }}>Service-user records are never deleted. This record carries placements, case notes, incidents, documents and safeguarding history, and the audit trail has to stay complete, so archiving is how a person is taken out of day-to-day use while everything they are part of stays intact.</p>
+            <ClientStatusControl clientId={client.id} displayName={client.restricted ? 'this record' : client.displayName} status={client.status} />
+          </div>
         </div>
       </section>
       <section className="crm-panel">
