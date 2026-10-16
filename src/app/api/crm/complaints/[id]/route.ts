@@ -24,7 +24,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const dueAt = parseDate(data.dueAt, 'response deadline') ?? (stageChanged ? complaintTimescales(complaint.receivedAt, data.stage).responseDueAt : undefined);
     const closedAt = isComplaintOpen(data.status) ? null : complaint.closedAt ?? new Date();
 
-    if (closedAt && requiresLearningRecord({ status: data.status, outcome }) && !(data.learning ?? complaint.learning)) {
+    // The learning requirement belongs to the complaint being closed, not to the closed state:
+    // `requiresLearningRecord` answers false for any status that is already closed, so it has to be
+    // asked about the status the complaint has now. Asking it about the incoming status made this
+    // guard unreachable, and an upheld complaint could be closed with nothing learned from it —
+    // even though the form labels the field "Learning (required to close)".
+    if (closedAt && requiresLearningRecord({ status: complaint.status, outcome }) && !(data.learning ?? complaint.learning)) {
       return NextResponse.json({ error: 'Record what the organisation has learned before closing a complaint with this outcome.' }, { status: 400 });
     }
 

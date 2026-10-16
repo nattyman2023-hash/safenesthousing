@@ -37,14 +37,15 @@ export function ClientRelationshipForm({ clientId, clients, types }: { clientId:
     const notes = String(form.get('notes') ?? '').trim();
     if (notes) payload.notes = notes;
 
+    // Both required fields carry the `required` attribute, so the browser refuses an empty
+    // submission before this handler runs — the convention the rest of the CRM follows, so the
+    // control can never appear to do nothing. Re-checking the same thing here would be unreachable
+    // code that reads as coverage it does not provide; the API remains the backstop for anything
+    // that reaches it without those fields.
     if (mode === 'client') {
-      const relatedClientId = String(form.get('relatedClientId') ?? '').trim();
-      if (!relatedClientId) { setState('error'); setMessage('Choose the person to link this profile to.'); return; }
-      payload.relatedClientId = relatedClientId;
+      payload.relatedClientId = String(form.get('relatedClientId') ?? '').trim();
     } else {
-      const fullName = String(form.get('fullName') ?? '').trim();
-      if (!fullName) { setState('error'); setMessage('Enter the external contact’s full name.'); return; }
-      payload.fullName = fullName;
+      payload.fullName = String(form.get('fullName') ?? '').trim();
       for (const field of ['phone', 'email', 'address', 'preferredContactMethod']) {
         const value = String(form.get(field) ?? '').trim();
         if (value) payload[field] = value;

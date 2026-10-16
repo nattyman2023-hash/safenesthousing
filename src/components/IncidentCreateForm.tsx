@@ -25,7 +25,10 @@ export function IncidentCreateForm({ clients, lockedClient }: { clients: { id: s
     <div className="form-field full"><label htmlFor="inc-location">Location</label><input id="inc-location" name="location" /></div>
     <div className="form-field full"><label htmlFor="inc-description">Description</label><textarea id="inc-description" name="description" required /></div>
     <div className="form-field full"><label htmlFor="inc-action">Immediate action taken</label><textarea id="inc-action" name="immediateAction" /></div>
-    <div className="form-field full"><label className="checkbox-row"><input type="checkbox" name="restricted" defaultChecked /> Restricted record</label></div>
+    {/* The hidden input pairs with the checkbox so an unticked box still submits an explicit "no".
+        Without it FormData omits the field entirely, the server falls back to its safe default of
+        restricted, and unticking the box would appear to work while being ignored. */}
+    <div className="form-field full"><label className="checkbox-row"><input type="hidden" name="restricted" value="false" /><input type="checkbox" name="restricted" value="true" defaultChecked /> Restricted record</label></div>
     <div className="form-field full"><button className="crm-button crm-button-primary" disabled={!hydrated || state === 'sending'}>{state === 'sending' ? 'Recording…' : 'Record incident'}</button></div>
   </div></form>;
 }

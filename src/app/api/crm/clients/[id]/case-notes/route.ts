@@ -3,10 +3,15 @@ import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth';
 import { caseNoteSchema } from '@/lib/crm-validation';
-import { contactCountsAsSupport, nextContactDueAt } from '@/lib/contact-tracking';
+import { contactCountsAsSupport, isContactLogNote, nextContactDueAt } from '@/lib/contact-tracking';
 
 /** Records a finalised case note. The same row is the contact log: recording a contact also sets
- * when the next planned contact falls due for that person. */
+ * when the next planned contact falls due for that person.
+ *
+ * Whether this note is a contact at all is decided by `isContactLogNote` — the same rule every
+ * planned-contact measure reads with — before anything is written. A structured case note (a
+ * review, a housing update, a safeguarding record) is therefore stored without a next-due date and
+ * reported as a case note, instead of quietly becoming a planned contact that never happened. */
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
@@ -21,7 +26,13 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     if (Number.isNaN(occurredAt.getTime())) return NextResponse.json({ error: 'Enter a valid contact date and time.' }, { status: 400 });
     const completed = data.completed ?? true;
     const meaningful = data.meaningful ?? true;
-    const countedAsSupport = contactCountsAsSupport({ completed, meaningful });
+    const attempted = data.attempted ?? false;
+    const method = data.method ?? 'OTHER';
+    // A note only joins the planned-contact record when it was logged as a contact: a way of keeping
+    // in touch, an explicit "did not go ahead", or a failed attempt. Anything else is case-work
+    // narrative, and counting it would move the next-due date without a contact ever happening.
+    const contactLog = isContactLogNote({ method, attempted, completed, nextContactDueAt: null });
+    const countedAsSupport = contactLog && contactCountsAsSupport({ completed, meaningful, attempted });
     const nextDueAt = countedAsSupport ? nextContactDueAt(occurredAt, client.contactFrequencyDays) : undefined;
 
     const note = await db.$transaction(async (tx) => {
@@ -36,11 +47,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
           followUpAction: data.followUpAction,
           followUpDate: data.followUpDate ? new Date(data.followUpDate) : undefined,
           occurredAt,
-          method: data.method ?? 'OTHER',
+          method,
           direction: data.direction,
           durationMinutes: data.durationMinutes,
           completed,
-          attempted: data.attempted ?? false,
+          attempted,
           meaningful,
           nextContactDueAt: nextDueAt,
           restricted: data.restricted,

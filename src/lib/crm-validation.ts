@@ -217,7 +217,19 @@ export const dataSubjectRequestStatuses = ['OPEN', 'IN_REVIEW', 'ACTION_REQUIRED
 const safeDateInput = z.preprocess((value) => value === '' ? undefined : value, z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a valid date.').optional());
 const legalBasisNote = z.string().trim().min(5, 'Add the approved legal basis or policy reference.').max(2000);
 const safeSubjectRef = z.string().trim().min(2).max(160).refine((value) => !/[\r\n]/.test(value), 'Use an approved reference without line breaks.');
-const booleanInput = z.preprocess((value) => value === true || value === 'true' || value === 'on', z.boolean());
+/**
+ * What an HTML form actually sends for a checkbox.
+ *
+ * A ticked box arrives as its value (`on`, or `true` where a form sets one) and an unticked box
+ * arrives as `false` or an empty string from the hidden input that pairs with it. Both spellings of
+ * "no" must be accepted: refusing them would turn an unticked box into a rejected save, and silently
+ * defaulting them would turn it into a save that ignored what the member of staff chose.
+ */
+const booleanInput = z.preprocess((value) => {
+  if (value === true || value === 'true' || value === 'on') return true;
+  if (value === false || value === 'false' || value === '') return false;
+  return value;
+}, z.boolean());
 
 export const retentionRuleCreateSchema = z.object({
   resourceType: z.enum(retentionResourceTypes),

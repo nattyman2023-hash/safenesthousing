@@ -84,6 +84,31 @@ describe('planned contact compliance', () => {
     expect(summary.state).toBe('OVERDUE');
     expect(contactComplianceState({ lastContactAt: new Date(2026, 5, 14), frequencyDays: 7, now })).toBe('ON_TRACK');
   });
+  it('does not count a failed attempt as delivered support', () => {
+    // The form records "attempted contact — I could not reach the person" while the contact row
+    // itself is still a completed record, so the attempt flag is the only thing standing between a
+    // missed contact and a planned contact reported as delivered.
+    expect(contactCountsAsSupport({ completed: true, meaningful: true, attempted: true })).toBe(false);
+    const summary = summariseContacts([
+      { occurredAt: new Date(2026, 5, 14), completed: true, attempted: true, meaningful: true, method: 'PHONE', nextContactDueAt: null },
+      { occurredAt: new Date(2026, 5, 8), completed: true, attempted: false, meaningful: true, method: 'HOME_VISIT', nextContactDueAt: null }
+    ], 7, now);
+    expect(summary.meaningful).toBe(1);
+    expect(summary.attempted).toBe(1);
+    expect(summary.missedStreak).toBe(1);
+    expect(summary.lastSupportContactAt?.getTime()).toBe(new Date(2026, 5, 8).getTime());
+    expect(summary.state).toBe('OVERDUE');
+    expect(requiresContactEscalation(summary)).toBe(true);
+  });
+  it('only starts the planned-contact clock when the note was logged as a contact', () => {
+    // The write path in POST /api/crm/clients/[id]/case-notes asks isContactLogNote before it stores
+    // a next-due date. A stored next-due date is itself one of the signals that makes a note read as
+    // a contact, so writing one for a review or a housing update would defeat the rule above.
+    const structured = { method: 'OTHER', attempted: false, completed: true, meaningful: true, nextContactDueAt: null };
+    expect(isContactLogNote(structured)).toBe(false);
+    expect(isContactLogNote({ ...structured, method: 'PHONE' })).toBe(true);
+    expect(isContactLogNote({ ...structured, attempted: true })).toBe(true);
+  });
 });
 
 describe('Safe & Well checks', () => {

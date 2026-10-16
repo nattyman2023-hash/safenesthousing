@@ -73,8 +73,11 @@ export function ClientRelationshipEditor({ clientId, types, relationship }: { cl
     router.refresh();
   }
 
-  return <details className="relationship-editor">
-    <summary>Edit or unlink</summary>
+  // A profile can hold several relationships and every editor offers the same type list, so the
+  // control names the person it edits and carries the relationship id: otherwise two relationships
+  // produce two identical "Edit or unlink" controls with nothing to tell them apart.
+  return <details className="relationship-editor" data-relationship-id={relationship.id}>
+    <summary>Edit or unlink · {relationship.counterpartName}</summary>
     <form className="inline-control" onSubmit={save} method="post">
       <select name="relationshipType" aria-label="Relationship" defaultValue={relationship.relationshipType}>{types.map((type) => <option key={type.key} value={type.key}>{type.label}</option>)}</select>
       <input name="startDate" type="date" aria-label="Known since" defaultValue={relationship.startDate} />

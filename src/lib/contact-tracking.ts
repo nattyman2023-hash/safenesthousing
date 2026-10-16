@@ -11,9 +11,14 @@ export const CONTACT_DIRECTIONS = ['OUTBOUND', 'INBOUND'] as const;
 export type ContactDirection = (typeof CONTACT_DIRECTIONS)[number];
 
 /** A contact is only counted as support when it happened, it was meaningful, and it was not
- * just a failed attempt to reach the person. */
-export function contactCountsAsSupport(note: { completed: boolean; meaningful: boolean }): boolean {
-  return note.completed && note.meaningful;
+ * just a failed attempt to reach the person.
+ *
+ * The `attempted` flag is set when staff could not reach the person at all (see the case-note
+ * form). Such a note is still a contact-log entry — it happened, and it needs a follow-up — but
+ * counting it as support would report a delivered contact that never took place, satisfy the
+ * planned-contact window, and hide the person who is not being reached. */
+export function contactCountsAsSupport(note: { completed: boolean; meaningful: boolean; attempted?: boolean }): boolean {
+  return note.completed && note.meaningful && !note.attempted;
 }
 
 /** The contact-tracking fields a case note carries when it was logged through the contact log. */

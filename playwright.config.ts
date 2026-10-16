@@ -9,6 +9,11 @@ const externalBaseUrl = process.env.BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL;
 export default defineConfig({
   testDir: './tests/e2e',
   workers: 1,
+  // The suite always boots its own dev server, so the first request to each route pays Next.js
+  // compilation. A short expect timeout turns that cold start into a flake in whichever test
+  // navigates first — and in a serial suite that is the setup test every other test depends on.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   use: { baseURL: externalBaseUrl ?? 'http://localhost:3000', trace: 'on-first-retry' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: externalBaseUrl ? undefined : { command: 'npm run dev', url: 'http://localhost:3000/health', reuseExistingServer: false, timeout: 120_000 }
