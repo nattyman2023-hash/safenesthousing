@@ -4,13 +4,30 @@ This application is server-rendered and must not be deployed as a static export.
 that can run a persistent Node 20 process (VPS or a supported Node application environment). If the
 selected plan cannot run a persistent Node server, use the Docker/VPS path or choose another plan.
 
+## Production deployment is triggered by Git
+
+> **Pushing to `master` triggers Hostinger production deployment.** Auto-deploy is enabled on this
+> installation, so a push is not bookkeeping: it starts a Hostinger build and, when the build
+> succeeds, swaps the live version and restarts the running SafeNest application. Treat every push to
+> `master` as production deployment authorisation.
+>
+> **The Hostinger build command must remain `bash scripts/hostinger-build.sh`.** Never leave it as
+> `npm run build`, and never set it to a bare Next.js build. `npm run build` skips production
+> configuration validation, the database migration, the pre-migration backup, and the post-migration
+> schema verification.
+>
+> This is exactly how release `070e557` was published on 2026-10-16 against a production database
+> that was **four migrations behind** (`0008`–`0011` unapplied), leaving CRM modules failing with
+> `no such table` / `no such column` even though the deployment reported success. If the build
+> command is ever changed, re-verify it in hPanel before the next push.
+
 ## Deploy from Git (hPanel Node.js app)
 
 Configure the Node.js app so Git pulls are followed by a build and process restart:
 
 1. Node 20.11+; application root is the repository containing `package.json`.
 2. Startup command: `npm run start` (Next reads Hostinger's assigned `PORT`).
-3. Build command: `bash scripts/hostinger-build.sh`. It runs `npm ci`, Prisma generation, the production configuration check, `npm run db:migrate:deploy`, removes the previous `.next` build output, and runs `npm run build`.
+3. Build command: `bash scripts/hostinger-build.sh`. It runs `npm ci`, Prisma generation, the production configuration check, `npm run db:migrate:deploy`, removes the previous `.next` build output, and runs `npm run build`. **This field must never be set to `npm run build` or a bare Next.js build** — those values bypass the configuration check, the migration, the pre-migration backup, and the schema verification (see the warning above).
 4. Import `.env.production.example` or add variables manually. Set strong secrets, HTTPS `APP_URL`, a persistent absolute `DATABASE_URL` outside `public_html`, private storage outside `public_html`, and the required email, malware, and rate-limit providers.
 5. Create the database and private-storage directories outside the public web root and confirm they survive redeploys.
 6. **Fresh installations only:** create the first organisation and administrator with
