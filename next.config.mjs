@@ -4,7 +4,10 @@ const nextConfig = {
   // pdfkit loads its built-in font data files (e.g. Helvetica.afm) via dynamic requires that
   // bundlers can't statically resolve — excluding it from bundling lets Node require it directly.
   serverExternalPackages: ['pdfkit'],
-  experimental: { serverActions: { bodySizeLimit: '2mb' } },
+  // cpus: Hostinger's build host reports 64 CPUs, so Next starts 63 page-data workers that each load
+  // Prisma's native engine; together they exceed the account's thread limit and the build aborts
+  // with "OS can't spawn worker thread". A small fixed pool builds reliably and just as fast here.
+  experimental: { serverActions: { bodySizeLimit: '2mb' }, cpus: 2 },
   async headers() {
     const productionHttps = process.env.NODE_ENV === 'production' && process.env.APP_URL?.startsWith('https://');
     const securityHeaders = [
