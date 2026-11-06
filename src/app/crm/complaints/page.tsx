@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmClientOptions, getCrmComplaints, getCrmOperationsBoard, getCrmStaffOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { ComplaintForm } from '@/components/ComplaintForm';
@@ -24,10 +25,10 @@ export default async function ComplaintsPage() {
       <MetricCard label="Response overdue" value={summary?.responseOverdue ?? 0} detail={`${summary?.upheld ?? 0} upheld`} tone="gold" icon="alert" />
       <MetricCard label="Learning outstanding" value={summary?.learningOutstanding ?? 0} detail={summary?.averageResponseDays ? `Average response ${summary.averageResponseDays} days` : 'Response time not yet measurable'} tone="blue" icon="chart" />
     </div>
-    <ComplaintForm
+    <CreatePanel title="Log a complaint" description="Record a complaint and its first response." defaultOpen={complaints.length === 0}><ComplaintForm
       clients={clients.map((client) => ({ id: client.id, label: `${client.restricted ? 'Restricted record' : client.displayName} (${client.reference})` }))}
       staff={staff.map((member) => ({ id: member.id, label: member.name }))}
-    />
+    /></CreatePanel>
     <FilterBar placeholder="Search complaints">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Complaint status">
         <option value="ALL">All complaints</option>

@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmComplianceRecords, getCrmOperationsBoard, getCrmPropertyOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { ComplianceRecordForm } from '@/components/ComplianceRecordForm';
@@ -22,7 +23,7 @@ export default async function CompliancePage() {
       <MetricCard label="Due soon" value={summary?.dueSoon ?? 0} detail="Within the next 30 days" tone="gold" icon="calendar" />
       <MetricCard label="Not recorded" value={summary?.missing ?? 0} detail={`${summary?.exempt ?? 0} exempt or not applicable`} tone="blue" icon="clipboard" />
     </div>
-    <ComplianceRecordForm properties={properties.map((property) => ({ id: property.id, label: property.publicName }))} />
+    <CreatePanel title="Record an obligation" description="Track a certificate, inspection or check for a property." defaultOpen={records.length === 0}><ComplianceRecordForm properties={properties.map((property) => ({ id: property.id, label: property.publicName }))} /></CreatePanel>
     <FilterBar placeholder="Search obligations by property or reference">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Compliance status">
         <option value="ALL">All statuses</option>

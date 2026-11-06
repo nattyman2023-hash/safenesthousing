@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { getCrmPlacements } from '@/lib/data';
@@ -38,7 +39,7 @@ export default async function PlacementsPage() {
       <MetricCard label="Ended or cancelled" value={stageCount('ENDED') + stageCount('CANCELLED')} detail="Kept in the placement history" tone="blue" icon="clipboard" />
       <MetricCard label="Available rooms" value={availableRooms} detail="Ready for a placement" tone="teal" icon="building" />
     </div>
-    <PlacementForm clients={clients} properties={properties} />
+    <CreatePanel title="Create a placement" description="Place a client into a property and room." defaultOpen={placements.length === 0}><PlacementForm clients={clients} properties={properties} /></CreatePanel>
     <FilterBar placeholder="Search resident, reference, property, or room">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Placement stage">
         <option value="ALL">All stages</option>

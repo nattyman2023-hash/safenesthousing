@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmClientOptions, getCrmConcerns, getCrmOperationsBoard, getCrmPropertyOptions, getCrmStaffOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { ConcernForm, ConcernUpdateControl } from '@/components/ConcernForm';
@@ -24,11 +25,11 @@ export default async function ConcernsPage() {
       <MetricCard label="Referrals needed" value={summary?.referralsRequired ?? 0} detail="External referral to be arranged" tone="gold" icon="users" />
       <MetricCard label="Average resolution" value={summary?.averageResolutionDays === null || summary?.averageResolutionDays === undefined ? '—' : `${summary.averageResolutionDays} days`} detail={`${summary?.resolved ?? 0} resolved`} tone="blue" icon="chart" />
     </div>
-    <ConcernForm
+    <CreatePanel title="Raise a concern" description="Record a concern so it can be followed up." defaultOpen={concerns.length === 0}><ConcernForm
       clients={clients.map((client) => ({ id: client.id, label: `${client.restricted ? 'Restricted record' : client.displayName} (${client.reference})` }))}
       properties={properties.map((property) => ({ id: property.id, label: property.publicName }))}
       staff={staff.map((member) => ({ id: member.id, label: member.name }))}
-    />
+    /></CreatePanel>
     <FilterBar placeholder="Search concerns">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Concern status">
         <option value="ALL">All concerns</option>

@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmClientOptions, getCrmMaintenanceTickets, getCrmOperationsBoard, getCrmPropertyOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { MaintenanceTicketForm } from '@/components/MaintenanceTicketForm';
@@ -23,10 +24,10 @@ export default async function MaintenancePage() {
       <MetricCard label="Safety risks" value={summary?.safetyRisks ?? 0} detail="Flagged as a risk to people" tone="gold" icon="alert" />
       <MetricCard label="Average fix" value={summary?.averageFixDays === null || summary?.averageFixDays === undefined ? '—' : `${summary.averageFixDays} days`} detail={`${summary?.completedThisPeriod ?? 0} completed this period`} tone="blue" icon="chart" />
     </div>
-    <MaintenanceTicketForm
+    <CreatePanel title="Log a repair" description="Report a repair or maintenance issue." defaultOpen={tickets.length === 0}><MaintenanceTicketForm
       properties={properties.map((property) => ({ id: property.id, label: property.publicName }))}
       clients={clients.map((client) => ({ id: client.id, label: `${client.restricted ? 'Restricted record' : client.displayName} (${client.reference})` }))}
-    />
+    /></CreatePanel>
     <FilterBar placeholder="Search repairs">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Repair status">
         <option value="ALL">All repairs</option>

@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmOperationsBoard, getCrmPolicies, getCrmStaffOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { PolicyResourceForm } from '@/components/PolicyResourceForm';
@@ -23,7 +24,7 @@ export default async function PoliciesPage() {
       <MetricCard label="Review overdue" value={summary?.overdue ?? 0} detail="Past the review date" tone="red" icon="alert" />
       <MetricCard label="Read confirmation" value={summary?.requiresRead ?? 0} detail={`${summary?.drafts ?? 0} in draft`} tone="blue" icon="users" />
     </div>
-    <PolicyResourceForm staff={staff.map((member) => ({ id: member.id, label: member.name }))} />
+    <CreatePanel title="Add a policy" description="Upload or link a policy or procedure." defaultOpen={policies.length === 0}><PolicyResourceForm staff={staff.map((member) => ({ id: member.id, label: member.name }))} /></CreatePanel>
     <FilterBar placeholder="Search policies and resources">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Policy status">
         <option value="ALL">All statuses</option>

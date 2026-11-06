@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import { getCrmAppointments, getCrmClientOptions, getCrmOperationsBoard, getCrmPropertyOptions, getCrmStaffOptions } from '@/lib/data';
 import { CrmPageHeader, EmptyState, FilterBar, MetricCard, StatusBadge, TableCard } from '@/components/CrmUI';
 import { AppointmentCreateForm } from '@/components/AppointmentCreateForm';
@@ -25,11 +26,11 @@ export default async function AppointmentsPage() {
       <MetricCard label="No access" value={summary?.noAccess ?? 0} detail="Access failures to follow up" tone="red" icon="alert" />
       <MetricCard label="Missed" value={summary?.missed ?? 0} detail={`${summary?.total ?? 0} appointments on record`} tone="blue" icon="chart" />
     </div>
-    <AppointmentCreateForm
+    <CreatePanel title="Book an appointment" description="Arrange an appointment with a client." defaultOpen={appointments.length === 0}><AppointmentCreateForm
       clients={clients.map((client) => ({ id: client.id, label: `${client.restricted ? 'Restricted record' : client.displayName} (${client.reference})` }))}
       properties={properties.map((property) => ({ id: property.id, label: property.publicName }))}
       staff={staff.map((member) => ({ id: member.id, label: member.name }))}
-    />
+    /></CreatePanel>
     <FilterBar placeholder="Search appointments">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Appointment status">
         <option value="ALL">All appointments</option>

@@ -25,6 +25,9 @@
   --radius-md: 10px;
   --radius-lg: 18px;
   --container: 1180px;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --field-border: #c8d4d6;
+  --field-border-hover: #9db1b6;
 }
 
 * { box-sizing: border-box; }
@@ -210,28 +213,79 @@ h3 { font-size: 1.35rem; }
 .contact-row { display: grid; grid-template-columns: 120px 1fr; gap: 20px; padding: 18px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .contact-row strong { color: var(--navy-800); font-family: Arial, sans-serif; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .contact-row span { min-width: 0; overflow-wrap: anywhere; color: var(--muted); }
-.form-card { padding: 34px; border: 1px solid var(--line); background: #fff; box-shadow: var(--shadow-sm); }
-.form-card h2 { margin-bottom: 8px; font-size: 2rem; }
-.form-card > p { margin-bottom: 25px; color: var(--muted); font-size: 14px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.form-field { display: grid; gap: 7px; }
+/* ---------------------------------------------------------------------------------------------
+   Forms. One shared system for every public and CRM form: readable labels, comfortable 46px
+   controls (15px text so phones never zoom on focus), clear focus and invalid states, automatic
+   required markers, tappable option rows, numbered sections and a separated action bar.
+   --------------------------------------------------------------------------------------------- */
+.form-card { padding: 36px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-sm); }
+.form-card h2 { margin-bottom: 6px; font-size: 1.9rem; line-height: 1.2; }
+.form-card > p { max-width: 64ch; margin-bottom: 26px; color: var(--muted); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; }
+.crm-page .form-card h2, .crm-stack .form-card h2, .crm-split .form-card h2 { font-size: 23px; }
+.crm-page .form-card > p { font-size: 14px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 22px; }
+.form-field { display: grid; gap: 7px; align-content: start; min-width: 0; }
 .form-field.full { grid-column: 1 / -1; }
-.form-field label { color: var(--navy-800); font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; }
-.form-field label span { color: var(--danger); }
-.form-field input, .form-field textarea, .form-field select { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--sand-50); color: var(--ink); outline: 0; font-family: Arial, sans-serif; font-size: 13px; }
-.form-field textarea { min-height: 120px; resize: vertical; }
-.form-field input:focus, .form-field textarea:focus, .form-field select:focus { border-color: var(--teal-500); box-shadow: 0 0 0 3px rgba(77,157,168,.14); }
+.form-field > label:not(.checkbox-row) { color: var(--navy-900); font-family: var(--font-ui); font-size: 14px; font-weight: 600; line-height: 1.35; }
+.form-field > label:not(.checkbox-row) > span { color: var(--danger); }
+/* Required fields are marked automatically, so no form can forget to. Labels that already carry a
+   hand-written marker (<span>*</span>) are left alone. */
+.form-field:has(> :is(input, select, textarea):required) > label:not(.checkbox-row):not(:has(span))::after { content: ' *'; content: ' *' / ''; color: var(--danger); }
+.form-hint { margin: 0; color: var(--muted); font-family: var(--font-ui); font-size: 13px; font-weight: 400; line-height: 1.45; }
+.form-field :is(input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]), select, textarea) {
+  width: 100%; min-height: 46px; padding: 11px 14px; border: 1px solid var(--field-border); border-radius: 8px; background-color: #fff;
+  color: var(--ink); outline: 0; font-family: var(--font-ui); font-size: 15px; line-height: 1.4;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.form-field :is(input, select, textarea)::placeholder { color: #93a2a8; opacity: 1; }
+.form-field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):hover:not(:disabled) { border-color: var(--field-border-hover); }
+.form-field :is(input:not([type=checkbox]):not([type=radio]), select, textarea):focus { border-color: var(--teal-600); box-shadow: 0 0 0 4px rgba(46,127,143,.16); }
+.form-field :is(input, select, textarea):user-invalid { border-color: var(--danger); }
+.form-field :is(input, select, textarea):user-invalid:focus { box-shadow: 0 0 0 4px rgba(182,64,73,.14); }
+.form-field :is(input, select, textarea):disabled { background: var(--sand-100); color: var(--muted); cursor: not-allowed; }
+.form-field textarea { min-height: 112px; resize: vertical; }
+.form-field textarea.is-short { min-height: 78px; }
+.form-field select:not([multiple]) { appearance: none; padding-right: 42px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23446b9d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-position: right 15px center; background-repeat: no-repeat; background-size: 12px 8px; cursor: pointer; }
+.form-field select[multiple] { min-height: 130px; padding: 8px; }
+.form-field input[type=date], .form-field input[type=datetime-local], .form-field input[type=time] { cursor: text; }
+.form-field input[type=file] { width: 100%; padding: 16px; border: 1.5px dashed var(--field-border); border-radius: 8px; background: var(--sand-50); color: var(--muted); font-family: var(--font-ui); font-size: 14px; cursor: pointer; }
+.form-field input[type=file]:hover { border-color: var(--teal-500); background: var(--teal-100); }
+.form-field input[type=file]::file-selector-button { margin-right: 14px; padding: 9px 15px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; color: var(--navy-800); font: 600 13px var(--font-ui); cursor: pointer; }
 .password-field { display: flex; align-items: center; gap: 8px; }
 .password-field input { flex: 1; min-width: 0; }
-.password-toggle { flex: 0 0 auto; padding: 10px 12px; font-size: 11px; }
-.checkbox-row { display: flex; align-items: flex-start; gap: 9px; color: var(--muted); font-family: Arial, sans-serif; font-size: 11px; line-height: 1.45; }
-.checkbox-row input { margin-top: 3px; accent-color: var(--teal-600); }
-.form-error { grid-column: 1 / -1; padding: 12px; border: 1px solid #e5bfc2; background: #fff4f4; color: var(--danger); font-family: Arial, sans-serif; font-size: 12px; }
+.password-toggle { flex: 0 0 auto; min-height: 46px; padding: 0 14px; font-size: 13px; }
+/* Option rows: the whole row is the hit area, and a ticked row is visibly different. */
+.checkbox-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 8px; background: var(--sand-50); color: var(--ink); font-family: var(--font-ui); font-size: 14px; font-weight: 400; line-height: 1.5; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.checkbox-row:hover { border-color: var(--field-border-hover); }
+.checkbox-row:has(input:checked) { border-color: var(--teal-500); background: var(--teal-100); }
+.checkbox-row:has(input:focus-visible) { outline: 3px solid var(--teal-500); outline-offset: 2px; }
+.checkbox-row input { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--teal-600); cursor: pointer; }
+.checkbox-row a { color: var(--teal-700); text-decoration: underline; }
+.checkbox-row strong { display: block; color: var(--navy-900); font-weight: 600; }
+.checkbox-row small { display: block; color: var(--muted); font-size: 13px; }
+/* Sections: long forms are split into numbered, labelled steps. */
+.form-section { min-width: 0; margin: 0; padding: 0; border: 0; }
+.form-section + .form-section { margin-top: 30px; padding-top: 28px; border-top: 1px solid var(--line); }
+.form-section > legend { display: flex; float: left; align-items: center; gap: 12px; width: 100%; margin: 0 0 4px; padding: 0; color: var(--navy-900); font-family: var(--font-ui); font-size: 17px; font-weight: 700; }
+.form-section > legend + * { clear: both; }
+.form-section > .form-hint { margin: 0 0 18px 40px; }
+.form-section > legend + .form-grid { padding-top: 14px; }
+.form-step { display: inline-grid; flex: 0 0 auto; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--teal-100); color: var(--teal-700); font-size: 13px; font-weight: 700; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+.form-actions .form-hint { flex: 1 1 260px; }
+.form-actions .button, .form-actions .crm-button { min-width: 200px; }
+/* Older forms put the submit button in a full-width field: keep it a button, not a banner. */
+.form-field.full > :is(.crm-button, .button):only-child { justify-self: start; min-width: 190px; }
+/* Messages */
+.form-error, .form-success, .form-notice { padding: 14px 16px; border: 1px solid; border-left-width: 4px; border-radius: 8px; font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+.form-error { grid-column: 1 / -1; border-color: #e8c3c6; border-left-color: var(--danger); background: #fff5f5; color: #8f2932; }
+.form-success { border-color: #bfdfcd; border-left-color: var(--success); background: #f2fbf5; color: #24634b; }
+.form-success a, .form-error a { color: inherit; font-weight: 600; text-decoration: underline; }
 /* Honest empty state: a form cannot be offered when the records it needs do not exist yet.
    Neutral (not an error the person caused) but impossible to miss. */
-.form-notice { grid-column: 1 / -1; padding: 12px; border: 1px solid #e0e9e9; border-left: 3px solid var(--teal-500); background: #f8fbfb; color: var(--navy-900); font-family: Arial, sans-serif; font-size: 12px; }
+.form-notice { grid-column: 1 / -1; border-color: #d7e7e8; border-left-color: var(--teal-500); background: #f6fbfb; color: var(--navy-900); }
 .form-notice a { color: var(--teal-700); text-decoration: underline; }
-.form-success { padding: 14px; border: 1px solid #b8dcc9; background: #f2fbf5; color: var(--success); font-family: Arial, sans-serif; font-size: 12px; }
+.form-card > :is(.form-error, .form-success, .form-notice) { margin-bottom: 22px; }
 .privacy-note { grid-column: 1 / -1; color: var(--muted); font-family: Arial, sans-serif; font-size: 11px; }
 .honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; }
 .text-danger { color: var(--danger) !important; }
@@ -281,7 +335,8 @@ h3 { font-size: 1.35rem; }
 .crm-page-header h1 { margin: 0 0 8px; color: var(--navy-900); font-family: Georgia, serif; font-size: 35px; letter-spacing: -.03em; }
 .crm-page-header p:not(.crm-eyebrow) { margin: 0; color: var(--muted); font-size: 13px; }
 .crm-eyebrow { margin-bottom: 7px; }
-.crm-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 0 13px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; }
+.crm-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: 7px; font-family: var(--font-ui); font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.crm-button:disabled, .button:disabled { opacity: .55; cursor: not-allowed; }
 .crm-button-primary { background: var(--navy-700); color: #fff; }
 .crm-button-primary:hover { background: var(--navy-900); }
 .crm-button-secondary { border-color: #cfdadb; background: #fff; color: var(--muted); }
@@ -346,14 +401,32 @@ h3 { font-size: 1.35rem; }
 
 /* CRM list controls, record panels, week calendar */
 .inline-control { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.inline-control select, .inline-control input { min-height: 30px; padding: 0 8px; border: 1px solid #cfdadb; border-radius: 4px; background: #fff; color: var(--ink); font-family: Arial, sans-serif; font-size: 10px; }
+.inline-control select, .inline-control input:not([type=checkbox]) { min-height: 36px; padding: 0 10px; border: 1px solid var(--field-border); border-radius: 6px; background: #fff; color: var(--ink); font-family: var(--font-ui); font-size: 13px; }
+.inline-control select:focus, .inline-control input:focus { border-color: var(--teal-600); box-shadow: 0 0 0 3px rgba(46,127,143,.16); outline: 0; }
+.inline-control .crm-button { min-height: 36px; }
+.inline-control .checkbox-row, .relationship-editor .checkbox-row { padding: 0; border: 0; background: none; font-size: 13px; }
 .inline-control input { min-width: 140px; }
-.inline-control .form-error { flex-basis: 100%; padding: 8px 10px; font-size: 10px; }
+.inline-control .form-error, .inline-control .form-success { flex-basis: 100%; padding: 9px 12px; font-size: 13px; }
+/* Collapsible create form on list pages (CreatePanel). */
+.create-panel { margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-sm); scroll-margin-top: 90px; }
+.create-panel > summary { display: flex; align-items: center; gap: 14px; padding: 16px 20px; font-family: var(--font-ui); list-style: none; cursor: pointer; }
+.create-panel > summary::-webkit-details-marker { display: none; }
+.create-panel > summary:hover .create-panel-toggle { text-decoration: underline; }
+.create-panel-icon { display: inline-grid; flex: 0 0 auto; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: var(--teal-100); color: var(--teal-700); transition: transform .2s ease; }
+.create-panel[open] .create-panel-icon { transform: rotate(45deg); }
+.create-panel-text { display: grid; gap: 2px; min-width: 0; }
+.create-panel-title { color: var(--navy-900); font-size: 16px; font-weight: 700; }
+.create-panel-sub { color: var(--muted); font-size: 13px; }
+.create-panel-toggle { margin-left: auto; color: var(--teal-700); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.create-panel .when-open, .create-panel[open] .when-closed { display: none; }
+.create-panel[open] .when-open { display: inline; }
+.create-panel .form-card { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-md) var(--radius-md); box-shadow: none; }
+/* The summary already names the form; keep the heading for assistive technology only. */
+.create-panel .form-card > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .relationship-editor { margin-top: 8px; }
 .relationship-editor > summary { display: inline-block; cursor: pointer; color: var(--teal-700); font-family: Arial, sans-serif; font-size: 10px; font-weight: 700; }
 .relationship-editor .inline-control { margin-top: 9px; align-items: flex-start; }
 .relationship-editor .inline-control > .timeline-meta { flex-basis: 100%; margin-top: 0; }
-.relationship-editor .checkbox-row { font-size: 10px; }
 /* Placement lifecycle controls: the destructive action only appears on the final confirmation. */
 .placement-actions { display: grid; gap: 2px; }
 .placement-actions > .form-success, .placement-actions > .form-error { margin-bottom: 10px; }
@@ -472,6 +545,10 @@ h3 { font-size: 1.35rem; }
   .form-grid { grid-template-columns: 1fr; }
   .form-field.full, .privacy-note, .form-error { grid-column: auto; }
   .form-card { padding: 22px; }
+  .form-section > .form-hint { margin-left: 0; }
+  .form-actions { flex-direction: column; align-items: stretch; }
+  .form-actions .form-hint { flex: none; }
+  .form-actions .button, .form-actions .crm-button, .form-field.full > :is(.crm-button, .button):only-child { width: 100%; min-width: 0; justify-self: stretch; }
   .contact-row { grid-template-columns: 90px 1fr; }
   /* The sidebar becomes a drawer instead of disappearing: staff on a phone still need every module
      and the sign-out control, which a display:none navigation used to take away. */
@@ -497,3 +574,4 @@ h3 { font-size: 1.35rem; }
   .auth-form .brand-logo-auth { margin-bottom: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+.form-hint a { color: var(--teal-700); text-decoration: underline; }

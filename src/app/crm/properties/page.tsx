@@ -1,3 +1,4 @@
+import { CreatePanel } from '@/components/CreatePanel';
 import Link from 'next/link';
 import { getCrmProperties } from '@/lib/data';
 import { getCrmSelectableServices } from '@/lib/service-catalogue';
@@ -29,7 +30,7 @@ export default async function CrmPropertiesPage() {
 
   return <div className="crm-page">
     <CrmPageHeader eyebrow="Housing operations" title="Properties & occupancy" intro="Rooms, availability, checks, and maintenance in one view." action="Add property" actionHref="#new" />
-    <PropertyCreateForm services={services} />
+    <CreatePanel title="Add a property" description="Register a property your services use." defaultOpen={properties.length === 0}><PropertyCreateForm services={services} /></CreatePanel>
     <FilterBar placeholder="Search property or neighbourhood">
       <select data-filter-status className="crm-button crm-button-secondary" defaultValue="ALL" aria-label="Property status">
         <option value="ALL">All properties</option>

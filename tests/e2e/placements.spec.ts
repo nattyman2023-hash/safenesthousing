@@ -152,14 +152,14 @@ test.describe.serial('Placement navigation and lifecycle', () => {
   });
 
   test('the placement register loads', async () => {
-    const response = await page.goto('/crm/placements');
+    const response = await page.goto('/crm/placements#new');
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'Placements', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Placement register' })).toBeVisible();
   });
 
   test('a real placement in the register opens its detail page', async () => {
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     // The room label is unique to this fixture; the two fixture placements share a service user, so
     // scoping by the reference alone would match the history row as well.
     const row = page.locator('tbody tr', { hasText: 'Room L' });
@@ -184,7 +184,7 @@ test.describe.serial('Placement navigation and lifecycle', () => {
     expect(response?.status()).toBe(404);
     await expect(page.getByText('That page is not here.')).toBeVisible();
     await expect(page.getByText(`${TAG} foreign resident`)).toHaveCount(0);
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     await expect(page.locator('tbody tr', { hasText: `SN-C-${TAG}-foreign` })).toHaveCount(0);
   });
 
@@ -262,7 +262,7 @@ test.describe.serial('Placement navigation and lifecycle', () => {
     expect(audit?.afterJson ?? '').toContain('duplicate placement created in error');
 
     // It is gone from the register, and the service user no longer has a current placement.
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     await expect(page.locator('tbody tr', { hasText: toRemove.reference })).toHaveCount(0);
     await page.goto(`/crm/clients/${toRemove.clientId}`);
     await expect(page.locator('section.crm-panel').filter({ has: page.getByRole('heading', { name: 'Current placement' }) }).getByText('No current placement.')).toBeVisible();
@@ -294,7 +294,7 @@ test.describe.serial('Placement navigation and lifecycle', () => {
     expect(audit).not.toBeNull();
 
     // The register names the stage in words rather than hiding it, and the profile keeps the history.
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     const row = page.locator('tbody tr', { hasText: toCorrect.reference });
     await expect(row).toHaveCount(1);
     await expect(row.getByText('Entered in error').first()).toBeVisible();

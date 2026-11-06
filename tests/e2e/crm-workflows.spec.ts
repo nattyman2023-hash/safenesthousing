@@ -285,7 +285,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   });
 
   test('service user: created twice through the form, and both records are real', async () => {
-    await page.goto('/crm/clients');
+    await page.goto('/crm/clients#new');
     await waitForHydratedForm(page, '#cli-name');
 
     for (const [label, status] of [['service user A', 'CURRENT'], ['service user B', 'CURRENT']] as const) {
@@ -431,7 +431,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   });
 
   test('task: created, edited, re-prioritised, progressed, and completed', async () => {
-    await page.goto('/crm/tasks');
+    await page.goto('/crm/tasks#new');
     await expect(page.locator('#task-title')).toBeEnabled();
     // The browser itself refuses an empty task, so the button cannot appear to do nothing.
     await expect(page.locator('#task-title')).toHaveAttribute('required', '');
@@ -472,7 +472,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     expect(edited.assignedToId).toBe(adminUserId);
 
     // Complete from the queue and confirm the queue agrees with the database.
-    await page.goto('/crm/tasks');
+    await page.goto('/crm/tasks#new');
     const doneRow = page.locator('tr').filter({ hasText: name('task renamed') }).first();
     await expect(doneRow.getByLabel('Task status')).toBeEnabled();
     await doneRow.getByLabel('Task status').selectOption('DONE');
@@ -561,7 +561,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   });
   test('incident: restricted by default, restriction can be lifted, then updated, actioned, and closed', async () => {
     expect(clientAId, 'the service user fixture was not created').toBeTruthy();
-    await page.goto('/crm/incidents');
+    await page.goto('/crm/incidents#new');
     await waitForHydratedForm(page, '#inc-category');
     const form = page.locator('form:has(#inc-category)');
 
@@ -656,7 +656,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   test('concerns: raised twice, progressed, resolved and closed — and only the record that was edited changed', async () => {
     expect(clientAId, 'the service user fixture was not created').toBeTruthy();
     await ensurePropertyFixture();
-    await page.goto('/crm/concerns');
+    await page.goto('/crm/concerns#new');
     await waitForHydratedForm(page, '#cn-title');
     const form = page.locator('form:has(#cn-title)');
 
@@ -796,7 +796,7 @@ test.describe.serial('CRM workflows through the interface', () => {
 
   test('complaints: logged twice, acknowledged and escalated, and an upheld complaint cannot close without learning', async () => {
     expect(clientAId, 'the service user fixture was not created').toBeTruthy();
-    await page.goto('/crm/complaints');
+    await page.goto('/crm/complaints#new');
     await waitForHydratedForm(page, '#cp-title');
     const form = page.locator('form:has(#cp-title)');
     const openBefore = Number(await page.locator('.metric-card', { hasText: 'Open complaints' }).locator('strong').textContent());
@@ -945,7 +945,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     const roomsBefore = await prisma.room.findMany({ where: { propertyId }, select: { id: true, label: true, status: true }, orderBy: { label: 'asc' } });
     const propertyBefore = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
 
-    await page.goto('/crm/maintenance');
+    await page.goto('/crm/maintenance#new');
     await waitForHydratedForm(page, '#mt-title');
     const form = page.locator('form:has(#mt-title)');
 
@@ -1028,7 +1028,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   test('repairs: reported to in progress to completed, a sibling is cancelled, and a completed repair stays historical', async () => {
     const ticketA = await prisma.maintenanceTicket.findFirstOrThrow({ where: { organisationId, title: name('repair A') } });
     const ticketB = await prisma.maintenanceTicket.findFirstOrThrow({ where: { organisationId, title: name('repair B') } });
-    await page.goto('/crm/maintenance');
+    await page.goto('/crm/maintenance#new');
     await waitForHydratedForm(page, '#mt-title');
 
     const rowA = page.locator('tbody tr', { hasText: name('repair A') });
@@ -1118,7 +1118,7 @@ test.describe.serial('CRM workflows through the interface', () => {
   test('appointments: booked for a service user, shown in the book, on the calendar and on the profile, then completed, cancelled and missed', async () => {
     expect(clientAId && clientBId, 'the service user fixtures were not created').toBeTruthy();
     await ensurePropertyFixture();
-    await page.goto('/crm/appointments');
+    await page.goto('/crm/appointments#new');
     await waitForHydratedForm(page, '#appt-title');
     const form = page.locator('form:has(#appt-title)');
 
@@ -1214,7 +1214,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     const clientA = await prisma.client.findUniqueOrThrow({ where: { id: clientAId }, select: { displayName: true } });
 
     // The appointment book is the register of record: it names the person, the category and the status.
-    await page.goto('/crm/appointments');
+    await page.goto('/crm/appointments#new');
     const bookRow = page.locator('tbody tr', { hasText: name('appointment A') });
     await expect(bookRow).toHaveCount(1);
     await expect(bookRow).toContainText(clientA.displayName);
@@ -1265,7 +1265,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     const appointmentB = await prisma.appointment.findFirstOrThrow({ where: { organisationId, title: name('appointment B') } });
     const appointmentC = await prisma.appointment.findFirstOrThrow({ where: { organisationId, title: name('appointment C') } });
 
-    await page.goto('/crm/appointments');
+    await page.goto('/crm/appointments#new');
     await waitForHydratedForm(page, '#appt-title');
     const rowA = page.locator('tbody tr', { hasText: name('appointment A') });
     const rowB = page.locator('tbody tr', { hasText: name('appointment B') });
@@ -1670,7 +1670,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     // same screens a housing officer uses.
     expect(clientAId, 'the service user fixture was not created').toBeTruthy();
     await ensurePropertyFixture();
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     await waitForHydratedForm(page, '#placement-client');
     const form = page.locator('form:has(#placement-client)');
 
@@ -1753,7 +1753,7 @@ test.describe.serial('CRM workflows through the interface', () => {
     expect((await prisma.room.findUniqueOrThrow({ where: { id: roomTwoId } })).status).toBe('AVAILABLE');
 
     // The record is still in the register, in the history stage rather than the current one.
-    await page.goto('/crm/placements');
+    await page.goto('/crm/placements#new');
     const endedRow = page.locator('tbody tr', { hasText: name('service user A') });
     await expect(endedRow, 'an ended placement disappeared from the register').toHaveCount(1);
     await expect(endedRow.locator('.crm-badge')).toContainText('Ended');
@@ -1782,14 +1782,14 @@ test.describe.serial('CRM workflows through the interface', () => {
     const foreign = await createForeignFixtures();
 
     // Nothing belonging to another organisation appears on any of the operational registers.
-    await page.goto('/crm/concerns');
+    await page.goto('/crm/concerns#new');
     await expect(page.locator('tbody tr', { hasText: foreign.concernTitle })).toHaveCount(0);
-    await page.goto('/crm/complaints');
+    await page.goto('/crm/complaints#new');
     await expect(page.locator('tbody tr', { hasText: foreign.complaintTitle })).toHaveCount(0);
-    await page.goto('/crm/maintenance');
+    await page.goto('/crm/maintenance#new');
     await expect(page.locator('tbody tr', { hasText: foreign.ticketTitle })).toHaveCount(0);
     await expect(page.locator('tbody tr', { hasText: foreign.ticketReference })).toHaveCount(0);
-    await page.goto('/crm/appointments');
+    await page.goto('/crm/appointments#new');
     await expect(page.locator('tbody tr', { hasText: foreign.appointmentTitle })).toHaveCount(0);
     // The foreign appointment is dated inside this week, so it would be on the diary if it leaked.
     await page.goto('/crm/calendar');

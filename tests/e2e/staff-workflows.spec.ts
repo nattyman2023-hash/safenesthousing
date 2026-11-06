@@ -107,7 +107,7 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
   });
 
   test('tasks: create a task and progress it', async () => {
-    await page.goto('/crm/tasks');
+    await page.goto('/crm/tasks#new');
     // One hydration commit covers the whole client root, so waiting on the create form also
     // covers the row status controls; without it a change could be lost before hydration.
     await waitForHydratedForm(page, '#new');
@@ -127,7 +127,7 @@ test.describe.serial('Staff sign-in and CRM operations', () => {
   });
 
   test('clients: restricted records are marked and open correctly', async () => {
-    await page.goto('/crm/clients');
+    await page.goto('/crm/clients#new');
     await expect(page.getByRole('link', { name: 'SN-C-001' })).toBeVisible();
     const restrictedRow = page.locator('tr', { hasText: 'Sofia Taylor' });
     await expect(restrictedRow.locator('[aria-label="Restricted record"]')).toBeVisible();

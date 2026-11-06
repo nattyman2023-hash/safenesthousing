@@ -25,6 +25,12 @@ export async function waitForHydratedForm(page: Page, selector: string): Promise
     selector,
     { timeout: 15_000 }
   );
+  // List pages keep their create form in a collapsible CreatePanel. A person opens it before typing,
+  // so the run does the same; forms outside a panel are unaffected.
+  await page.evaluate((target: string) => {
+    const panel = document.querySelector(target)?.closest('details.create-panel') as HTMLDetailsElement | null;
+    if (panel && !panel.open) panel.open = true;
+  }, selector);
 }
 
 /**

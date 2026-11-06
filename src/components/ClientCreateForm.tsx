@@ -18,21 +18,52 @@ export function ClientCreateForm({ services, referrals }: { services: { id: stri
     const result = await response.json();
     if (response.ok) { setState('success'); setCreatedId(result.id ?? ''); setMessage(`Client ${result.reference ?? ''} added.`.replace('  ', ' ')); formElement.reset(); router.refresh(); } else { setState('error'); setMessage(result.error ?? 'We could not add the client.'); }
   }
-  return <form id="new" className="form-card" onSubmit={submit} method="post"><h2>Add client</h2>{message && <div className={state === 'success' ? 'form-success' : 'form-error'} role="status">{message}{state === 'success' && createdId && <> <Link href={`/crm/clients/${createdId}`}>Open record</Link></>}</div>}<div className="form-grid">
-    <div className="form-field"><label htmlFor="cli-name">Display name</label><input id="cli-name" name="displayName" placeholder="A. Morgan" required /></div>
-    <div className="form-field"><label htmlFor="cli-dob">Date of birth</label><input id="cli-dob" name="dateOfBirth" type="date" /></div>
-    <div className="form-field"><label htmlFor="cli-service">Service</label><select id="cli-service" name="serviceId" defaultValue=""><option value="">No linked service</option>{services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}</select></div>
-    <div className="form-field"><label htmlFor="cli-referral">Linked referral</label><select id="cli-referral" name="referralId" defaultValue=""><option value="">None</option>{referrals.map((referral) => <option key={referral.id} value={referral.id}>{referral.reference} · {referral.personName}</option>)}</select></div>
-    <div className="form-field"><label htmlFor="cli-risk">Risk level</label><select id="cli-risk" name="riskLevel" defaultValue="Medium"><option>Low</option><option>Medium</option><option>High</option></select></div>
-    <div className="form-field"><label htmlFor="cli-status">Status</label><select id="cli-status" name="status" defaultValue="WAITLIST"><option value="WAITLIST">Waitlist</option><option value="CURRENT">Current</option><option value="MOVED_ON">Moved on</option><option value="ARCHIVED">Archived</option></select></div>
-    <div className="form-field"><label htmlFor="cli-admission">Admission date</label><input id="cli-admission" name="admissionDate" type="date" /></div>
-    <div className="form-field"><label htmlFor="cli-phone">Phone</label><input id="cli-phone" name="phone" type="tel" autoComplete="off" /></div>
-    <div className="form-field"><label htmlFor="cli-email">Email</label><input id="cli-email" name="email" type="email" autoComplete="off" /></div>
-    <div className="form-field full"><label htmlFor="cli-address">Contact address</label><textarea id="cli-address" name="address" rows={2} placeholder="Correspondence address only. Never record a confidential refuge address here." /></div>
-    <div className="form-field full"><label htmlFor="cli-comms">Communication needs</label><textarea id="cli-comms" name="communicationNeeds" /></div>
-    <div className="form-field full"><label htmlFor="cli-alerts">Important alerts</label><textarea id="cli-alerts" name="importantAlerts" placeholder="Brief, staff-facing alerts (e.g. do not call before 10am)" /></div>
-    <div className="form-field full"><label className="checkbox-row"><input type="checkbox" name="safeguardingFlag" /> Safeguarding concern</label></div>
-    <div className="form-field full"><label className="checkbox-row"><input type="checkbox" name="restricted" /> Restricted record</label></div>
-    <div className="form-field full"><button className="crm-button crm-button-primary" disabled={!hydrated || state === 'sending'}>{state === 'sending' ? 'Adding…' : 'Add client'}</button></div>
-  </div></form>;
+  return <form id="new" className="form-card" onSubmit={submit} method="post">
+    <h2>Add client</h2>
+    {message && <div className={state === 'success' ? 'form-success' : 'form-error'} role="status">{message}{state === 'success' && createdId && <> <Link href={`/crm/clients/${createdId}`}>Open record</Link></>}</div>}
+
+    <fieldset className="form-section">
+      <legend><span className="form-step">1</span>Who they are</legend>
+      <div className="form-grid">
+        <div className="form-field full"><label htmlFor="cli-name">Display name</label><input id="cli-name" name="displayName" placeholder="e.g. A. Morgan" required minLength={2} autoComplete="off" /><p className="form-hint">The name or permitted identifier staff will see across the CRM.</p></div>
+        <div className="form-field"><label htmlFor="cli-dob">Date of birth</label><input id="cli-dob" name="dateOfBirth" type="date" /></div>
+        <div className="form-field"><label htmlFor="cli-admission">Admission date</label><input id="cli-admission" name="admissionDate" type="date" /></div>
+      </div>
+    </fieldset>
+
+    <fieldset className="form-section">
+      <legend><span className="form-step">2</span>Service and status</legend>
+      <div className="form-grid">
+        <div className="form-field"><label htmlFor="cli-service">Service</label><select id="cli-service" name="serviceId" defaultValue=""><option value="">No linked service</option>{services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}</select></div>
+        <div className="form-field"><label htmlFor="cli-referral">Linked referral</label><select id="cli-referral" name="referralId" defaultValue=""><option value="">None</option>{referrals.map((referral) => <option key={referral.id} value={referral.id}>{referral.reference} · {referral.personName}</option>)}</select></div>
+        <div className="form-field"><label htmlFor="cli-risk">Risk level</label><select id="cli-risk" name="riskLevel" defaultValue="Medium"><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div className="form-field"><label htmlFor="cli-status">Status</label><select id="cli-status" name="status" defaultValue="WAITLIST"><option value="WAITLIST">Waitlist</option><option value="CURRENT">Current</option><option value="MOVED_ON">Moved on</option><option value="ARCHIVED">Archived</option></select></div>
+      </div>
+    </fieldset>
+
+    <fieldset className="form-section">
+      <legend><span className="form-step">3</span>Contact details</legend>
+      <p className="form-hint">Optional. Only record a way of contacting them that is safe to use.</p>
+      <div className="form-grid">
+        <div className="form-field"><label htmlFor="cli-phone">Phone</label><input id="cli-phone" name="phone" type="tel" inputMode="tel" autoComplete="off" /></div>
+        <div className="form-field"><label htmlFor="cli-email">Email</label><input id="cli-email" name="email" type="email" autoComplete="off" /></div>
+        <div className="form-field full"><label htmlFor="cli-address">Contact address</label><textarea id="cli-address" name="address" className="is-short" /><p className="form-hint">Correspondence address only. Never record a confidential refuge address here.</p></div>
+      </div>
+    </fieldset>
+
+    <fieldset className="form-section">
+      <legend><span className="form-step">4</span>Needs and alerts</legend>
+      <div className="form-grid">
+        <div className="form-field full"><label htmlFor="cli-comms">Communication needs</label><textarea id="cli-comms" name="communicationNeeds" className="is-short" placeholder="e.g. interpreter needed, prefers text messages" /></div>
+        <div className="form-field full"><label htmlFor="cli-alerts">Important alerts</label><textarea id="cli-alerts" name="importantAlerts" className="is-short" placeholder="e.g. do not call before 10am" /><p className="form-hint">Brief, staff-facing alerts shown at the top of the record.</p></div>
+        <div className="form-field"><label className="checkbox-row"><input type="checkbox" name="safeguardingFlag" /><span><strong>Safeguarding concern</strong><small>Flags the record for safeguarding oversight.</small></span></label></div>
+        <div className="form-field"><label className="checkbox-row"><input type="checkbox" name="restricted" /><span><strong>Restricted record</strong><small>Limits who can open this record.</small></span></label></div>
+      </div>
+    </fieldset>
+
+    <div className="form-actions">
+      <p className="form-hint">Documents, relationships and support plans are added from the client&apos;s record.</p>
+      <button className="crm-button crm-button-primary" disabled={!hydrated || state === 'sending'}>{state === 'sending' ? 'Adding…' : 'Add client'}</button>
+    </div>
+  </form>;
 }

@@ -23,7 +23,7 @@ test.describe.serial('Incidents, rota, and document storage', () => {
   });
 
   test('incidents: add an update and a follow-up action to a restricted incident', async () => {
-    await page.goto('/crm/incidents');
+    await page.goto('/crm/incidents#new');
     const incidentLink = page.getByRole('link', { name: 'INC-2607-018' });
     await expect(incidentLink).toBeVisible();
     await incidentLink.click();
@@ -47,7 +47,7 @@ test.describe.serial('Incidents, rota, and document storage', () => {
   });
 
   test('rota: create a shift with no property, service, or assignee selected', async () => {
-    await page.goto('/crm/rota');
+    await page.goto('/crm/rota#new');
     await waitForHydratedForm(page, '#shift-type');
     const shiftType = `Playwright coverage shift ${Date.now()}`;
     await page.getByLabel('Shift type').fill(shiftType);
