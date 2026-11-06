@@ -5,7 +5,8 @@ import { requireUser } from '@/lib/auth';
 import { clientCreateSchema } from '@/lib/crm-validation';
 
 function makeReference() {
-  const suffix = Math.floor(100 + Math.random() * 900);
+  // 6 digits (900,000 values) so the uniqueness retry loop below can never run out of references.
+  const suffix = Math.floor(100000 + Math.random() * 900000);
   return `SN-C-${suffix}`;
 }
 

@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+
 type IconProps = { size?: number };
 
 export function Icon({ name, size = 18 }: IconProps & { name: 'arrow' | 'menu' | 'close' | 'search' | 'home' | 'users' | 'clipboard' | 'building' | 'alert' | 'check' | 'calendar' | 'chart' | 'settings' | 'shield' | 'file' | 'bell' | 'logout' | 'plus' }) {

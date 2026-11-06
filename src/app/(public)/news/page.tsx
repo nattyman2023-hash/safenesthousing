@@ -12,6 +12,6 @@ export default async function NewsPage() {
   const posts = await getPublishedNews();
   return <main>
     <PublicPageHero eyebrow="News & stories" title="From the Nest" intro="Updates, ideas, and honest reflections from our homes and the people connected to them." image={featuredImage} />
-    <section className="section"><div className="container"><div className="news-grid">{posts.map((post, index) => <Link href={`/news/${post.slug}`} key={post.slug} className={`news-card ${index === 0 ? 'featured' : ''}`}><p className="news-meta">{post.category} - {formatDate(post.publishedAt)}</p><h2>{post.title}</h2><p>{post.summary}</p><span className="text-link">Read more <span aria-hidden="true">-&gt;</span></span></Link>)}</div></div></section>
+    <section className="section"><div className="container">{posts.length ? <div className="news-grid">{posts.map((post, index) => <Link href={`/news/${post.slug}`} key={post.slug} className={`news-card ${index === 0 ? 'featured' : ''}`}><p className="news-meta">{post.category} - {formatDate(post.publishedAt)}</p><h2>{post.title}</h2><p>{post.summary}</p><span className="text-link">Read more <span aria-hidden="true">-&gt;</span></span></Link>)}</div> : <div className="empty-state"><h3>No news has been published yet</h3><p>Updates and stories appear here once they have been written and approved. In the meantime, please contact us if you would like to know more about our work.</p></div>}</div></section>
   </main>;
 }

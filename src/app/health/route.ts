@@ -4,6 +4,7 @@ import { runtimeConfigChecks } from '@/lib/env';
 import { mailAdapterStatusWithStoredSecrets } from '@/lib/mail';
 import { rateLimitAdapterStatus } from '@/lib/rate-limit';
 import { storageAdapterStatus } from '@/lib/storage-status';
+import { schemaStatus } from '@/lib/schema-status';
 
 export async function GET() {
   let database = 'ok';
@@ -12,15 +13,16 @@ export async function GET() {
   } catch {
     database = 'unavailable';
   }
+  const schema = database === 'ok' ? await schemaStatus() : 'unknown';
   const email = await mailAdapterStatusWithStoredSecrets();
   const runtime = runtimeConfigChecks({ ...process.env, EMAIL_PROVIDER: email.provider }, { emailConfigured: email.configured });
-  const ready = database === 'ok' && runtime.ready;
+  const ready = database === 'ok' && schema !== 'outdated' && runtime.ready;
   return NextResponse.json({
     status: ready ? 'ok' : 'degraded',
     service: 'safe-nest',
     timestamp: new Date().toISOString(),
-    checks: { database },
+    checks: { database, schema },
     runtime: { environment: runtime.environment, ready: runtime.ready, checks: runtime.checks, warnings: runtime.warnings },
-    adapters: { email, storage: storageAdapterStatus(), rateLimit: rateLimitAdapterStatus(), malwareScanner: { provider: process.env.MALWARE_SCAN_PROVIDER ?? 'disabled', configured: (process.env.MALWARE_SCAN_PROVIDER ?? 'disabled') === 'disabled' || (!!process.env.MALWARE_SCAN_URL && !!process.env.MALWARE_SCAN_TOKEN) } }
+    adapters: { email, storage: storageAdapterStatus(), rateLimit: rateLimitAdapterStatus(), malwareScanner: runtime.malware }
   }, { status: ready ? 200 : 503 });
 }

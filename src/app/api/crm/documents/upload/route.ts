@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: document.id, displayName: document.displayName });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'MALWARE_SCAN_REQUIRED' || message === 'MALWARE_SCAN_UNAVAILABLE' ? 503 : message === 'MALWARE_DETECTED' ? 422 : 400;
-    const responseMessage = status === 503 ? 'The upload service is temporarily unavailable because malware scanning is not ready.' : status === 422 ? 'This file failed malware scanning and was not stored.' : status >= 500 ? 'Unable to upload the document.' : message || 'Unable to upload the document.';
+    const status = message === 'AUTH_REQUIRED' ? 401 : message === 'MALWARE_DETECTED' ? 422 : message === 'MALWARE_SCAN_FILE_TOO_LARGE' ? 413 : message === 'MALWARE_SCAN_UNSUPPORTED_TYPE' ? 415 : message.startsWith('MALWARE_') ? 503 : 400;
+    const responseMessage = status === 503 ? 'The upload service is temporarily unavailable because malware scanning is not ready.' : status === 422 ? 'This file failed malware scanning and was not stored.' : status === 413 ? 'Files must be smaller than 10 MB.' : status === 415 ? 'Unsupported file type. Upload a PDF, PNG, JPG, or TXT file with the correct extension.' : status >= 500 ? 'Unable to upload the document.' : message || 'Unable to upload the document.';
     return NextResponse.json({ error: responseMessage }, { status });
   }
 }

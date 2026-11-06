@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Icon } from './Icons';
 import { getServiceEditorial } from '@/lib/service-content';
+import { publicMetrics } from '@/lib/public-content';
 
 type PropertyVisual = { src: string; alt: string };
 
@@ -107,8 +108,15 @@ export function PropertyCard({ property }: { property: { slug: string; publicNam
   return <article className="property-card"><PropertyPhoto serviceType={property.serviceType} /><div className="property-card-content"><div className="tag-row"><span className={`status-tag ${vacancy ? 'status-available' : 'status-neutral'}`}>{property.publicVacancyState}</span><span className="tag-outline">{property.serviceType}</span></div><h3>{property.publicName} <span>· {property.neighbourhood}</span></h3><p>{property.publicSummary}</p><ButtonLink href={`/properties/${property.slug}`} secondary small>{vacancy ? 'Enquire' : 'Join waitlist'} <Icon name="arrow" size={14} /></ButtonLink></div></article>;
 }
 
+/**
+ * The public band only shows figures an editor has actually saved. Missing settings are omitted
+ * instead of being replaced by marketing defaults, and no hard-coded operational claim (such as
+ * "24/7") is displayed. With no saved metrics the band is not rendered at all.
+ */
 export function StatsBand({ settings }: { settings?: Record<string, string> }) {
-  return <section className="stats-band"><div className="container stats-grid"><div><strong>{settings?.['homepage.stats.moveOn'] ?? '94%'}</strong><span>move-on tenancies sustained at six months</span></div><div><strong>{settings?.['homepage.stats.newRooms'] ?? '12'}</strong><span>new supported rooms opened this year</span></div><div><strong>{settings?.['homepage.stats.responseTarget'] ?? '7 days'}</strong><span>our target for acknowledging referrals</span></div><div><strong>24/7</strong><span>confidential safety support</span></div></div></section>;
+  const metrics = publicMetrics(settings);
+  if (!metrics.length) return null;
+  return <section className="stats-band"><div className="container stats-grid">{metrics.map((metric) => <div key={metric.label}><strong>{metric.value}</strong><span>{metric.label}</span></div>)}</div></section>;
 }
 
 export function UrgentHelp() {

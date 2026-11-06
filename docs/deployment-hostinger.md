@@ -21,6 +21,13 @@ selected plan cannot run a persistent Node server, use the Docker/VPS path or ch
 > `no such table` / `no such column` even though the deployment reported success. If the build
 > command is ever changed, re-verify it in hPanel before the next push.
 
+> **Current setting (2026-11-06):** Hostinger's managed Next.js builder takes a package.json *script
+> name*, not a shell command. It is set to **`build:hostinger`** (`node scripts/migrate-local.mjs &&
+> next build`), which backs up and migrates the production database before building. A failed
+> migration fails the build, so the previous version stays live. Never set it back to `build`.
+> `GET /health` reports `checks.schema` (`ok` / `outdated`) so the live schema can be verified
+> without shell access.
+
 ## Deploy from Git (hPanel Node.js app)
 
 Configure the Node.js app so Git pulls are followed by a build and process restart:

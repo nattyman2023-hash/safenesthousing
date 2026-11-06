@@ -17,7 +17,7 @@ export function PropertyCreateForm({ services }: { services: { id: string; title
     if (response.ok) { setState('success'); setMessage('Property added to the portfolio.'); formElement.reset(); router.refresh(); } else { setState('error'); setMessage(result.error ?? 'We could not add the property.'); }
   }
   return <form id="new" className="form-card" onSubmit={submit} method="post"><h2>Add property</h2>{message && <div className={state === 'success' ? 'form-success' : 'form-error'} role="status">{message}</div>}<div className="form-grid">
-    <div className="form-field"><label htmlFor="prop-name">Property name</label><input id="prop-name" name="publicName" placeholder="Willow House" required /></div>
+    <div className="form-field"><label htmlFor="prop-name">Property name</label><input id="prop-name" name="publicName" placeholder="Enter the property name" required /></div>
     <div className="form-field"><label htmlFor="prop-service">Service</label><select id="prop-service" name="serviceId" defaultValue=""><option value="">No linked service</option>{services.map((service) => <option key={service.id} value={service.id}>{service.title}</option>)}</select></div>
     <div className="form-field"><label htmlFor="prop-neighbourhood">Neighbourhood</label><input id="prop-neighbourhood" name="neighbourhood" placeholder="Northside" required /></div>
     <div className="form-field"><label htmlFor="prop-type">Service type</label><input id="prop-type" name="serviceType" placeholder="Domestic abuse" required /></div>

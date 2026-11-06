@@ -11,6 +11,6 @@ export default async function PropertiesPage() {
   const filters = ['All', 'Vacancies', 'Young people', 'Women only', 'Step-down', 'Refugee move-on'];
   return <main>
     <PublicPageHero eyebrow="Accommodation" title="Our properties" intro="We share locations at neighbourhood level. Exact addresses of refuge accommodation are never published; full details are shared with referrers after assessment." image={featuredImage} />
-    <section className="section"><div className="container"><div className="filter-pills">{filters.map((filter, index) => <button key={filter} className={`filter-pill ${index === 0 ? 'active' : ''}`}>{filter}</button>)}</div><div className="property-grid">{properties.map((property) => <PropertyCard key={property.slug} property={property} />)}</div></div></section>
+    <section className="section"><div className="container"><div className="filter-pills">{filters.map((filter, index) => <button key={filter} className={`filter-pill ${index === 0 ? 'active' : ''}`}>{filter}</button>)}</div>{properties.length ? <div className="property-grid">{properties.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> : <div className="empty-state"><h3>Property details are not published yet</h3><p>We only publish a home once it has been added and approved by our team. Please contact us to discuss current availability and referrals.</p></div>}</div></section>
   </main>;
 }

@@ -6,6 +6,8 @@ import { defineConfig, devices } from '@playwright/test';
 // BASE_URL points the suite at an already-running deployment (for example the production host) and
 // suppresses the local web server, so the same specs double as a production route audit.
 const externalBaseUrl = process.env.BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL;
+// E2E_PORT lets the suite run while another local app holds port 3000.
+const localPort = process.env.E2E_PORT ?? '3000';
 export default defineConfig({
   testDir: './tests/e2e',
   workers: 1,
@@ -14,7 +16,7 @@ export default defineConfig({
   // navigates first — and in a serial suite that is the setup test every other test depends on.
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  use: { baseURL: externalBaseUrl ?? 'http://localhost:3000', trace: 'on-first-retry' },
+  use: { baseURL: externalBaseUrl ?? `http://localhost:${localPort}`, trace: 'on-first-retry' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: externalBaseUrl ? undefined : { command: 'npm run dev', url: 'http://localhost:3000/health', reuseExistingServer: false, timeout: 120_000 }
+  webServer: externalBaseUrl ? undefined : { command: 'npm run dev', url: `http://localhost:${localPort}/health`, env: { PORT: localPort }, reuseExistingServer: false, timeout: 120_000 }
 });

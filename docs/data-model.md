@@ -190,12 +190,16 @@ applies:
 `Service` has no `active` or `referralEnabled` column, so publication is the only availability flag the
 write paths can enforce.
 
-Selectable lists are read from the database and never fall back to fixtures. The public content helpers
-(`getServices`, `getPublicProperties`, `getPublishedNews`) still fall back to the fictional lists in
-`lib/data.ts` when a table has no rows, which is deliberate for marketing pages: a fresh installation
-should still show representative public content. Those fallback entries use slug-shaped ids
-(`domestic-abuse`), so they can never be offered by a form or accepted by an endpoint — the referral form
-offered exactly those ids once, and every submission was refused with "Choose an available service."
+Selectable lists are read from the database and never fall back to fixtures. Public content also comes
+from the database: `getPublicProperties` and `getPublishedNews` return an empty list when a table has no
+rows (or cannot be read), and the public pages render an honest empty state. No invented property,
+vacancy count, outcome percentage or growth figure is published. `getServices` is the one remaining
+marketing fallback: it is generic, non-quantitative copy used only when no service is published, and its
+slug-shaped ids (`domestic-abuse`) can never be offered by a form or accepted by an endpoint — the
+referral form offered exactly those ids once, and every submission was refused with "Choose an
+available service." `getSiteSettings` merges saved settings over non-quantitative defaults only
+(headline and contact details); the homepage statistics band renders a metric solely when an editor has
+saved a value for it.
 
 When no service is eligible, the CRM form says so in plain words, points at where a service is published
 (`/crm/content`) and disables its submit control, rather than presenting a menu that cannot be submitted.

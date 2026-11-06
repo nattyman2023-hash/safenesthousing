@@ -31,7 +31,7 @@ export default async function CrmDashboardPage() {
     </div> : <EmptyState title="Live figures unavailable" message="The operational data could not be loaded. Public pages and record lookups are unaffected." />}
     <div className="dashboard-grid">
       <TableCard title="Needs attention" count={board ? `${board.attention.total} people` : undefined}>
-        {board?.attentionRows.length ? <table className="crm-table"><thead><tr><th>Person</th><th>Severity</th><th>Why</th><th>Contact due</th><th>Open work</th><th>Open</th></tr></thead><tbody>
+        {board ? (board.attentionRows.length ? <table className="crm-table"><thead><tr><th>Person</th><th>Severity</th><th>Why</th><th>Contact due</th><th>Open work</th><th>Open</th></tr></thead><tbody>
           {board.attentionRows.slice(0, 6).map((row) => <tr key={row.clientId}>
             <td><strong>{row.restricted ? 'Restricted record' : row.label}</strong></td>
             <td><StatusBadge status={row.severity} /></td>
@@ -40,15 +40,15 @@ export default async function CrmDashboardPage() {
             <td>{row.openTasks}{row.overdueTasks ? ` (${row.overdueTasks} overdue)` : ''}</td>
             <td><Link href={`/crm/clients/${row.clientId}`}>Open client</Link></td>
           </tr>)}
-        </tbody></table> : <EmptyState title="Everyone is in step" message="No service user is behind on planned contact or Safe and Well checks." />}
+        </tbody></table> : <EmptyState title="Everyone is in step" message="No service user is behind on planned contact or Safe and Well checks." />) : <EmptyState title="Attention list unavailable" message="The live attention list could not be loaded, so nothing is being claimed about who is up to date." />}
       </TableCard>
       <section className="table-card">
-        <div className="table-card-header"><h2>This week <span>{board?.calendarSummary.total ?? 0}</span></h2><Link href="/crm/calendar">Open calendar <span>→</span></Link></div>
+        <div className="table-card-header"><h2>This week <span>{board ? board.calendarSummary.total : '—'}</span></h2><Link href="/crm/calendar">Open calendar <span>→</span></Link></div>
         <div className="panel-list">
-          {board?.calendarEntries.length ? board.calendarEntries.slice(0, 6).map((entry) => <div className="panel-list-item" key={entry.id}>
+          {board ? (board.calendarEntries.length ? board.calendarEntries.slice(0, 6).map((entry) => <div className="panel-list-item" key={entry.id}>
             <strong>{entry.title}</strong>
             <span className="timeline-meta">{CALENDAR_ENTRY_KIND_LABELS[entry.kind]} · {entry.allDay ? 'All day' : formatDateTime(entry.startsAt)} · {entry.status.replace(/_/g, ' ').toLowerCase()}</span>
-          </div>) : <p className="calendar-empty">Nothing is scheduled for this week.</p>}
+          </div>) : <p className="calendar-empty">Nothing is scheduled for this week.</p>) : <p className="calendar-empty">The diary could not be loaded.</p>}
         </div>
       </section>
     </div>
@@ -65,10 +65,12 @@ export default async function CrmDashboardPage() {
       <section className="crm-panel">
         <div className="panel-header"><h2>Escalations</h2><Link href="/crm/reports">Reports →</Link></div>
         <div className="panel-list">
-          <div className="panel-list-item"><strong>{board?.maintenance.breached ?? 0} repairs past target</strong><span className="timeline-meta">{board?.maintenance.safetyRisks ?? 0} with a safety risk · {board?.maintenance.open ?? 0} open</span></div>
-          <div className="panel-list-item"><strong>{board?.concerns.open ?? 0} open concerns</strong><span className="timeline-meta">{board?.concerns.overdue ?? 0} past the response window</span></div>
-          <div className="panel-list-item"><strong>{board?.complaints.acknowledgementOverdue ?? 0} complaints awaiting acknowledgement</strong><span className="timeline-meta">{board?.complaints.responseOverdue ?? 0} past the response deadline</span></div>
-          <div className="panel-list-item"><strong>{board?.compliance.overdue ?? 0} compliance obligations overdue</strong><span className="timeline-meta">{board?.compliance.complianceRate ?? 0}% of obligations are in date</span></div>
+          {board ? <>
+            <div className="panel-list-item"><strong>{board.maintenance.breached} repairs past target</strong><span className="timeline-meta">{board.maintenance.safetyRisks} with a safety risk · {board.maintenance.open} open</span></div>
+            <div className="panel-list-item"><strong>{board.concerns.open} open concerns</strong><span className="timeline-meta">{board.concerns.overdue} past the response window</span></div>
+            <div className="panel-list-item"><strong>{board.complaints.acknowledgementOverdue} complaints awaiting acknowledgement</strong><span className="timeline-meta">{board.complaints.responseOverdue} past the response deadline</span></div>
+            <div className="panel-list-item"><strong>{board.compliance.overdue} compliance obligations overdue</strong><span className="timeline-meta">{board.compliance.complianceRate}% of obligations are in date</span></div>
+          </> : <p className="calendar-empty">Escalation figures could not be loaded, so no counts are being shown.</p>}
         </div>
       </section>
       <section className="crm-panel">

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { audit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth';
 import { readPrivateDocument, sha256Bytes } from '@/lib/storage';
+import { canDownloadDocument } from '@/lib/malware-scan';
 
 export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -10,6 +11,12 @@ export async function GET(_request: Request, props: { params: Promise<{ id: stri
     const user = await requireUser();
     const document = await db.document.findFirst({ where: { id: params.id, organisationId: user.organisationId } });
     if (!document) return NextResponse.json({ error: 'Document not found.' }, { status: 404 });
+    // Fail closed: while scanning is enforced, only an explicit CLEAN verdict may be served.
+    // The check happens before the stored bytes are read so a quarantined file is never loaded.
+    if (!canDownloadDocument(document.malwareScanStatus)) {
+      await audit({ organisationId: user.organisationId, actorId: user.id, action: 'DOCUMENT_DOWNLOAD_BLOCKED', resourceType: 'Document', resourceId: document.id, success: false, after: { reason: 'MALWARE_SCAN_NOT_CLEAN', malwareScanStatus: document.malwareScanStatus } });
+      return NextResponse.json({ error: 'Document unavailable until malware scanning has cleared it.' }, { status: 403, headers: { 'Cache-Control': 'private, no-store' } });
+    }
     const bytes = await readPrivateDocument(document.storageKey);
     if (document.sha256 && sha256Bytes(bytes) !== document.sha256) {
       await audit({ organisationId: user.organisationId, actorId: user.id, action: 'DOCUMENT_INTEGRITY_FAILURE', resourceType: 'Document', resourceId: document.id, success: false });

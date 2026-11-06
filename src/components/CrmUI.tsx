@@ -12,8 +12,8 @@ export function MetricCard({ label, value, detail, tone = 'teal', icon = 'chart'
 
 export { FilterBar } from './FilterBar';
 
-export function EmptyState({ title, message }: { title: string; message: string }) {
-  return <div className="empty-state"><span className="empty-icon"><Icon name="clipboard" size={22} /></span><h3>{title}</h3><p>{message}</p></div>;
+export function EmptyState({ title, message, action }: { title: string; message: string; action?: { label: string; href: string } }) {
+  return <div className="empty-state"><span className="empty-icon"><Icon name="clipboard" size={22} /></span><h3>{title}</h3><p>{message}</p>{action && <p style={{ marginTop: 14 }}><Link className="crm-button crm-button-secondary" href={action.href}>{action.label}</Link></p>}</div>;
 }
 
 export function TableCard({ children, title, count }: { children: React.ReactNode; title?: string; count?: string }) {

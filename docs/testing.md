@@ -5,6 +5,14 @@ tasks, integer-money invoice totals and balances, CSV escaping/formula protectio
 form validation. Security tests cover bounded throttling, forwarded-client parsing, and production
 configuration readiness.
 
+`tests/dependency-alignment.test.ts` pins React, React DOM and their type packages to one 19.2 release
+and rejects duplicate React copies, which is what caused the cold-cache `/_global-error` build crash.
+`npm run verify:build` deletes `.next` and runs the production build so a warm cache cannot hide that
+class of failure again. Malware-scanning tests cover the fail-closed upload contract (disabled provider,
+missing configuration, timeout, invalid or oversized verdict, infection, hash/size/type checks) and the
+download gate, which serves only an explicitly `CLEAN` status while scanning is required and audits the
+refusal. Public-content tests pin the removal of invented metrics and named property/news examples.
+
 The Playwright suite covers public navigation, logged-out CRM protection, staff login, referral and task
 workflows, incident updates/actions, rota creation, private document upload, authenticated CRM
 navigation, document access for two different staff accounts (including files flagged restricted and

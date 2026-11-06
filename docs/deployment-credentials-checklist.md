@@ -38,13 +38,28 @@ public web root. For multiple instances, use private S3-compatible storage with 
 
 ## Malware scanning and rate limiting
 
-Configure `MALWARE_SCAN_PROVIDER=http`, `MALWARE_SCAN_URL`, and `MALWARE_SCAN_TOKEN` before accepting
-real documents if the deployment policy requires scanning. Use `RATE_LIMIT_PROVIDER=http` with its URL
-and token when running more than one application instance.
+Production document handling must fail closed. Choose one scanner:
+
+- Cloudmersive: `MALWARE_SCAN_PROVIDER=cloudmersive` and `CLOUDMERSIVE_API_KEY` — the real API key
+  (server environment only). The endpoint is fixed in code; no URL or token is used.
+- Generic HTTP scanner: `MALWARE_SCAN_PROVIDER=http`, `MALWARE_SCAN_URL` — the real scanner endpoint,
+  and `MALWARE_SCAN_TOKEN` — the real shared secret (server environment only).
+
+Either way, set `REQUIRE_MALWARE_SCAN=true`.
+
+While enforcement is on, an upload is refused if the provider is disabled or unsupported, the required
+credential/URL is missing, the scanner is unreachable, times out (20s), returns an invalid/oversized
+response, or reports an infection. Nothing is written to storage and no `Document` row is created
+before an explicit clean verdict. Downloads are refused (403, audited) unless the stored status is
+exactly `CLEAN`; legacy `SKIPPED` documents stay unavailable until legitimately rescanned. See
+`docs/malware-scanning.md`.
+
+Use `RATE_LIMIT_PROVIDER=http` with its URL and token when running more than one application instance.
 
 ## Release checks
 
-1. Run `npm run check:production-config`; every required check must be OK.
+1. Run `npm run check:production-config`; every check must read `CONFIGURED` (or a deliberate
+   `NOT REQUIRED`), with no `NOT CONFIGURED`.
 2. Apply migrations with `npm run db:migrate:deploy`; never run `npm run db:seed` in production, and
    never during an upgrade of an existing installation.
 3. **Fresh installations only:** create the first administrator with `npm run bootstrap:admin`. It is

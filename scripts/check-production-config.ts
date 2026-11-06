@@ -11,8 +11,10 @@ try {
 
 const result = runtimeConfigChecks({ ...fileValues, ...process.env, NODE_ENV: 'production' });
 
+const labels = { configured: 'CONFIGURED', 'not-configured': 'NOT CONFIGURED', 'not-required': 'NOT REQUIRED' } as const;
 console.log(`Production configuration: ${result.ready ? 'ready' : 'not ready'}`);
-for (const check of result.checks) console.log(`${check.ok ? 'OK' : 'MISSING'}  ${check.name}`);
+for (const check of result.checks) console.log(`${labels[check.status].padEnd(13)} ${check.name}`);
+console.log(`Malware scanning: provider=${result.malware.provider} required=${result.malware.required} configured=${result.malware.configured} enforced=${result.malware.enforced}`);
 for (const warning of result.warnings) console.warn(`WARNING  ${warning}`);
 
 if (!result.ready) {

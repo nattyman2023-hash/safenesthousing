@@ -187,12 +187,26 @@ describe('protected data validation', () => {
     const base = { NODE_ENV: 'production', APP_URL: 'https://safe-nest.example', DATABASE_URL: 'file:./prod.db', AUTH_SECRET: 'a'.repeat(40), FILE_SIGNING_SECRET: 'b'.repeat(40), RETENTION_REVIEW_SECRET: 'c'.repeat(40), SMTP_HOST: 'smtp.example', SMTP_PORT: '587', RATE_LIMIT_PROVIDER: 'memory', MALWARE_SCAN_PROVIDER: 'http', MALWARE_SCAN_URL: 'https://scanner.example/scan', MALWARE_SCAN_TOKEN: 'scanner-token' };
     const ready = runtimeConfigChecks(base);
     expect(ready.ready).toBe(true);
-    expect(ready.warnings).toHaveLength(2);
+    expect(ready.warnings).toHaveLength(3);
     expect(ready.warnings.some((warning) => warning.includes('RATE_LIMIT_PROVIDER'))).toBe(true);
     expect(ready.warnings.some((warning) => warning.includes('STORAGE_PROVIDER'))).toBe(true);
+    expect(ready.warnings.some((warning) => warning.includes('REQUIRE_MALWARE_SCAN'))).toBe(true);
     expect(runtimeConfigChecks({ ...base, APP_URL: 'http://safe-nest.example' }).ready).toBe(false);
     expect(runtimeConfigChecks({ ...base, AUTH_SECRET: 'replace-with-a-secret' }).ready).toBe(false);
     expect(runtimeConfigChecks({ ...base, MALWARE_SCAN_PROVIDER: 'disabled' }).ready).toBe(true);
     expect(runtimeConfigChecks({ ...base, RETENTION_REVIEW_SECRET: 'short' }).ready).toBe(false);
+  });
+
+  it('fails production readiness when required scanning is not fully configured', () => {
+    const base = { NODE_ENV: 'production', APP_URL: 'https://safe-nest.example', DATABASE_URL: 'file:./prod.db', AUTH_SECRET: 'a'.repeat(40), FILE_SIGNING_SECRET: 'b'.repeat(40), RETENTION_REVIEW_SECRET: 'c'.repeat(40), EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'smtp.example', SMTP_PORT: '587', RATE_LIMIT_PROVIDER: 'memory', STORAGE_PROVIDER: 'local', MALWARE_SCAN_PROVIDER: 'http', MALWARE_SCAN_URL: 'https://scanner.example/scan', MALWARE_SCAN_TOKEN: 'scanner-token', REQUIRE_MALWARE_SCAN: 'true' };
+    const ready = runtimeConfigChecks(base);
+    expect(ready.ready).toBe(true);
+    const checks = (environment: Record<string, string>) => Object.fromEntries(runtimeConfigChecks({ ...base, ...environment }).checks.map((check) => [check.name, check.ok]));
+    expect(checks({ MALWARE_SCAN_PROVIDER: 'disabled' }).MALWARE_SCAN_PROVIDER).toBe(false);
+    expect(checks({ MALWARE_SCAN_PROVIDER: 'unsupported' }).MALWARE_SCAN_PROVIDER).toBe(false);
+    expect(checks({ MALWARE_SCAN_URL: '' }).MALWARE_SCAN_URL).toBe(false);
+    expect(checks({ MALWARE_SCAN_TOKEN: '' }).MALWARE_SCAN_TOKEN).toBe(false);
+    expect(runtimeConfigChecks({ ...base, MALWARE_SCAN_TOKEN: '' }).ready).toBe(false);
+    expect(runtimeConfigChecks({ ...base, MALWARE_SCAN_PROVIDER: 'disabled' }).ready).toBe(false);
   });
 });

@@ -12,11 +12,19 @@ import { buildCalendarEntries, buildCalendarWeek, buildServiceUserAttention, sum
 import { summariseMaintenance } from './operations-domain';
 import { isTaskClosed, summariseTaskQueue } from './task-workflow';
 import { addDays, startOfWeek } from './dates';
+import { crmDataUnavailable, reportCrmDataError } from './crm-errors';
 
-/** Fictional fallback content keeps the CRM populated for assessment when the database is empty
- * or momentarily unreachable. Fictional fallback data is limited to development and test environments
- * has been removed so local and production behave identically. */
-function fictional<T>(items: T[]): T[] { return items; }
+/* Public marketing content only.
+ *
+ * `fallbackServices` keeps the open website readable when the service table is empty during a
+ * fresh installation. It is generic marketing copy with no quantities, property names, vacancy
+ * counts or performance claims, and no authenticated CRM loader may import it.
+ *
+ * Services, properties, news and site settings are read from the database. When a public table is
+ * empty or unavailable the page shows an honest empty state rather than inventing records or
+ * metrics: the client-facing site must never publish a made-up occupancy, outcome or growth
+ * figure. CRM data is either a real organisation-scoped row, [] for an empty register, or an
+ * explicit error state. */
 
 export const fallbackServices = [
   { id: 'supported-accommodation', slug: 'supported-accommodation', title: 'Supported accommodation', summary: 'A safe, settled home with practical support around you.', content: 'Our supported homes combine a real tenancy with consistent, person-led support.', audience: 'Adults who need a safe place to live while building independence.', serviceType: 'Supported accommodation' },
@@ -27,27 +35,8 @@ export const fallbackServices = [
   { id: 'refugee-move-on', slug: 'refugee-move-on', title: 'Refugee move-on', summary: 'A welcoming home while a new chapter takes shape.', content: 'We help newly granted refugees and families establish a stable home and community connections.', audience: 'Refugees and families ready for move-on accommodation.', serviceType: 'Refugee move-on' }
 ];
 
-export const fallbackProperties = [
-  { id: 'willow-house', slug: 'willow-house', publicName: 'Willow House', neighbourhood: 'Northside', serviceType: 'Domestic abuse', publicSummary: 'Six-bed staffed house for women fleeing domestic abuse. Children welcome. Secure entry, garden, shared kitchen.', capacity: 6, publicVacancyState: '2 rooms available', facilities: ['Secure entry', 'Garden', 'Shared kitchen'], eligibility: 'Women and families leaving domestic abuse.', confidential: true },
-  { id: 'harbour-court', slug: 'harbour-court', publicName: 'Harbour Court', neighbourhood: 'Riverside', serviceType: 'Young people', publicSummary: 'Eight semi-independent flats for care leavers, with daily key work and life-skills programme.', capacity: 8, publicVacancyState: '1 room available', facilities: ['Self-contained flats', 'Daily key work', 'Life-skills programme'], eligibility: 'Young people aged 18–25.', confidential: false },
-  { id: 'fenwick-road', slug: 'fenwick-road', publicName: 'Fenwick Road', neighbourhood: 'Eastfield', serviceType: 'Mental health', publicSummary: 'Four-bed shared house for mental health step-down, with visiting support three days a week.', capacity: 4, publicVacancyState: 'Full — waitlist', facilities: ['Shared house', 'Visiting support', 'Quiet garden'], eligibility: 'Adults moving from hospital or higher support.', confidential: false },
-  { id: 'alder-terrace', slug: 'alder-terrace', publicName: 'Alder Terrace', neighbourhood: 'Westgate', serviceType: 'Homelessness support', publicSummary: 'Ten-bed supported house for adults moving on from homelessness. Staffed daytime, on-call overnight.', capacity: 10, publicVacancyState: '3 rooms available', facilities: ['Day staff', 'On-call overnight', 'Communal kitchen'], eligibility: 'Adults aged 18+ moving on from homelessness.', confidential: false },
-  { id: 'linden-place', slug: 'linden-place', publicName: 'Linden Place', neighbourhood: 'Old Town', serviceType: 'Refugee move-on', publicSummary: 'Self-contained flats for newly granted refugees and families, with weekly integration support.', capacity: 5, publicVacancyState: 'Family flat available', facilities: ['Self-contained flats', 'Family friendly', 'Integration support'], eligibility: 'Newly granted refugees and families.', confidential: false }
-];
-
-export const fallbackNews = [
-  { id: 'new-houses', slug: 'new-houses-westgate', title: 'Two new houses open in Westgate, adding twelve supported rooms', summary: 'A partnership with the city council brings our first Housing First-model homes online this summer.', category: 'Announcements', publishedAt: new Date('2026-06-12'), authorName: 'Safe Nest team', content: 'This summer we opened two new homes in Westgate, adding twelve supported rooms for people with the longest histories of rough sleeping.' },
-  { id: 'leah-story', slug: 'leahs-year-at-willow-house', title: '“I got my daughter back” — Leah’s year at Willow House', summary: 'A resident’s own account of refuge, recovery and reunion. Shared with permission.', category: 'Stories', publishedAt: new Date('2026-05-16'), authorName: 'Safe Nest team', content: 'Leah shares what a safe, steady place meant for her family.' },
-  { id: 'outcomes-report', slug: 'outcomes-report-2025-26', title: 'Our 2025–26 outcomes report is out', summary: '94% of residents sustained their move-on tenancy at six months.', category: 'Reports', publishedAt: new Date('2026-05-02'), authorName: 'Safe Nest team', content: 'Our outcomes report shares the full data, method and honest misses.' },
-  { id: 'gardeners', slug: 'volunteer-gardeners-wanted', title: 'Volunteer gardeners wanted for three of our houses', summary: 'Green-fingered? Our residents are building kitchen gardens this summer.', category: 'Community', publishedAt: new Date('2026-04-20'), authorName: 'Safe Nest team', content: 'We are looking for volunteers to help residents build kitchen gardens.' },
-  { id: 'renters-rights', slug: 'renters-rights-explainer', title: 'What the Renters’ Rights changes mean for our residents', summary: 'A plain-English explainer from our housing team.', category: 'Policy', publishedAt: new Date('2026-03-04'), authorName: 'Safe Nest team', content: 'A plain-English overview of the changes most relevant to residents.' }
-];
-
 export const fallbackSiteSettings: Record<string, string> = {
   'homepage.headline': 'A safe place to land. The support to move on.',
-  'homepage.stats.moveOn': '94%',
-  'homepage.stats.newRooms': '12',
-  'homepage.stats.responseTarget': '7 days',
   'contact.generalEmail': 'hello@safenesthousing.org.uk',
   'contact.referralEmail': 'hello@safenesthousing.org.uk',
   'contact.emergencyMessage': 'In immediate danger, call 999. For confidential support, call 0808 157 0000.'
@@ -63,8 +52,8 @@ export async function getSiteSettings(): Promise<Record<string, string>> {
 export async function getServices() {
   try {
     const rows = await db.service.findMany({ where: { published: true }, orderBy: { displayOrder: 'asc' } });
-    return rows.length ? rows : fictional(fallbackServices);
-  } catch { return fictional(fallbackServices); }
+    return rows.length ? rows : fallbackServices;
+  } catch { return fallbackServices; }
 }
 
 export async function getServiceBySlug(slug: string) {
@@ -75,9 +64,12 @@ export async function getServiceBySlug(slug: string) {
 export async function getPublicProperties() {
   try {
     const rows = await db.property.findMany({ where: { published: true }, orderBy: { displayOrder: 'asc' }, select: { id: true, slug: true, publicName: true, neighbourhood: true, serviceType: true, publicSummary: true, capacity: true, publicVacancyState: true, facilities: true, eligibility: true, confidential: true } });
-    if (rows.length) return rows.map((row) => ({ ...row, facilities: safeJsonArray(row.facilities) }));
-  } catch { /* fall through to safe fictional fallback */ }
-  return fictional(fallbackProperties);
+    return rows.map((row) => ({ ...row, facilities: safeJsonArray(row.facilities) }));
+  } catch {
+    // The public site must never invent homes or vacancy figures. A failed read is an empty register.
+    console.error('[public:properties] data access failed; rendering an empty property list');
+    return [];
+  }
 }
 
 export async function getPublicPropertyBySlug(slug: string) {
@@ -88,9 +80,12 @@ export async function getPublicPropertyBySlug(slug: string) {
 export async function getPublishedNews() {
   try {
     const rows = await db.newsPost.findMany({ where: { published: true }, include: { category: true }, orderBy: { publishedAt: 'desc' } });
-    if (rows.length) return rows.map((row) => ({ ...row, category: row.category.name }));
-  } catch { /* fallback */ }
-  return fictional(fallbackNews);
+    return rows.map((row) => ({ ...row, category: row.category.name }));
+  } catch {
+    // No invented stories or outcome statistics on the public site: show an honest empty list.
+    console.error('[public:news] data access failed; rendering an empty news list');
+    return [];
+  }
 }
 
 export async function getNewsBySlug(slug: string) {
@@ -119,9 +114,10 @@ export async function getDashboardData() {
     const totalRooms = properties.reduce((total, property) => total + property.rooms.length, 0);
     const occupiedRooms = properties.reduce((total, property) => total + property.rooms.filter((room) => room.status === 'OCCUPIED').length, 0);
     return { currentResidents: clients, availableRooms, openReferrals: referrals, referralsNeedingAction, openIncidents: incidents, tasks, properties, reviewCount: reviews, hbExceptions, occupancy: totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0 };
-  } catch {
-    return { currentResidents: 0, availableRooms: 0, openReferrals: 0, referralsNeedingAction: [], openIncidents: 0, tasks: [], properties: [], reviewCount: 0, hbExceptions: 0, occupancy: 0 };
-    return { currentResidents: 24, availableRooms: 6, openReferrals: 11, referralsNeedingAction: [], openIncidents: 3, tasks: [{ id: 't1', title: 'Call back Northside referral', dueAt: new Date(Date.now() + 86400000), priority: 'HIGH', status: 'OPEN' }], properties: fallbackProperties.map((property) => ({ ...property, rooms: [] })), reviewCount: 5, hbExceptions: 2, occupancy: 82 };
+  } catch (error) {
+    // A failed dashboard query is an outage. Zeroes would read as "nothing is happening", so the
+    // page is handed to the CRM error boundary instead of reporting invented calm.
+    throw crmDataUnavailable('dashboard', error);
   }
 }
 
@@ -131,13 +127,11 @@ export async function getCrmReferrals() {
   try {
     const rows = await db.referral.findMany({ where: { organisationId: user.organisationId }, include: { service: true, assignments: { orderBy: { assignedAt: 'desc' }, take: 1, include: { user: { select: { id: true, name: true, email: true } } } } }, orderBy: { createdAt: 'desc' } });
     return rows;
-  } catch { /* fallback */ }
-  return fictional([
-    { id: 'ref-1', reference: 'SN-2607-001', status: 'TRIAGE', personName: 'A. Morgan', referrerName: 'J. Whitfield', referrerOrganisation: 'City Housing Options', service: { title: 'Homelessness support' }, createdAt: new Date('2026-07-17'), followUpDate: new Date('2026-07-21') },
-    { id: 'ref-2', reference: 'SN-2607-002', status: 'ASSESSMENT_BOOKED', personName: 'R. Khan', referrerName: 'M. Green', referrerOrganisation: 'Community Mental Health Team', service: { title: 'Mental health' }, createdAt: new Date('2026-07-16'), followUpDate: new Date('2026-07-20') },
-    { id: 'ref-3', reference: 'SN-2607-003', status: 'OFFER_MADE', personName: 'S. Taylor', referrerName: 'L. Byrne', referrerOrganisation: 'Leaving Care Service', service: { title: 'Care leavers and young people' }, createdAt: new Date('2026-07-14'), followUpDate: new Date('2026-07-18') },
-    { id: 'ref-4', reference: 'SN-2607-004', status: 'AWAITING_INFORMATION', personName: 'Anonymous', referrerName: 'Safe Nest duty line', referrerOrganisation: 'Internal', service: { title: 'Domestic abuse' }, createdAt: new Date('2026-07-12'), followUpDate: new Date('2026-07-19') }
-  ]);
+  } catch (error) {
+    // A failed query is an outage, not an empty pipeline. Throwing hands the page to the CRM error
+    // boundary; returning fixtures here is what put invented referrals into production.
+    throw crmDataUnavailable('referrals', error);
+  }
 }
 
 export async function getReferralAssignees(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>, _serviceId: string) {
@@ -148,7 +142,7 @@ export async function getReferralAssignees(user: NonNullable<Awaited<ReturnType<
       orderBy: { name: 'asc' }
     });
     return users;
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('referral-assignees', error); }
 }
 
 export async function getCrmClients() {
@@ -157,12 +151,10 @@ export async function getCrmClients() {
   try {
     const rows = await db.client.findMany({ where: { organisationId: user.organisationId }, include: { service: true, placements: { include: { property: true } } }, orderBy: { updatedAt: 'desc' } });
     return rows;
-  } catch { /* fallback */ }
-  return fictional([
-    { id: 'client-1', reference: 'SN-C-001', displayName: 'Amelia Morgan', status: 'CURRENT', riskLevel: 'Medium', restricted: false, service: { title: 'Homelessness support' }, placements: [{ property: { publicName: 'Alder Terrace' }, roomId: 'Room 4' }] },
-    { id: 'client-2', reference: 'SN-C-002', displayName: 'Rafi Khan', status: 'CURRENT', riskLevel: 'Low', restricted: false, service: { title: 'Mental health' }, placements: [{ property: { publicName: 'Fenwick Road' }, roomId: 'Room 2' }] },
-    { id: 'client-3', reference: 'SN-C-003', displayName: 'Sofia Taylor', status: 'WAITLIST', riskLevel: 'High', restricted: true, service: { title: 'Care leavers and young people' }, placements: [] }
-  ]);
+  } catch (error) {
+    // Never fabricate service users: a failed query must surface as an error, not as an invented person.
+    throw crmDataUnavailable('clients', error);
+  }
 }
 
 export async function getCrmIncidents() {
@@ -171,12 +163,10 @@ export async function getCrmIncidents() {
   try {
     const rows = await db.incident.findMany({ where: { organisationId: user.organisationId }, include: { client: true, updates: { orderBy: { createdAt: 'desc' }, take: 10 }, actions: { orderBy: { dueDate: 'asc' } } }, orderBy: { incidentAt: 'desc' } });
     return rows;
-  } catch { /* fallback */ }
-  return fictional([
-    { id: 'incident-1', reference: 'INC-2607-018', category: 'Welfare concern', severity: 'High', status: 'UNDER_REVIEW', incidentAt: new Date('2026-07-17'), restricted: true, client: { displayName: 'Restricted record' } },
-    { id: 'incident-2', reference: 'INC-2607-017', category: 'Property safety', severity: 'Medium', status: 'ACTION_PLAN_ACTIVE', incidentAt: new Date('2026-07-15'), restricted: false, client: { displayName: 'Amelia Morgan' } },
-    { id: 'incident-3', reference: 'INC-2607-014', category: 'Accident', severity: 'Low', status: 'CLOSED', incidentAt: new Date('2026-07-09'), restricted: false, client: { displayName: 'Rafi Khan' } }
-  ]);
+  } catch (error) {
+    // A failed incident query must never render invented safeguarding records.
+    throw crmDataUnavailable('incidents', error);
+  }
 }
 
 export async function getCrmTasks() {
@@ -185,12 +175,10 @@ export async function getCrmTasks() {
   try {
     const rows = await db.task.findMany({ where: { organisationId: user.organisationId }, include: { assignedTo: { select: { id: true, name: true } } }, orderBy: { dueAt: 'asc' } });
     return rows.map((task) => ({ ...task, overdue: isTaskOverdue(task) }));
-  } catch { /* fallback */ }
-  return fictional([
-    { id: 'task-1', title: 'Call back Northside referral', description: 'Confirm assessment availability.', priority: 'HIGH', status: 'OPEN', dueAt: new Date('2026-07-18'), overdue: false },
-    { id: 'task-2', title: 'Review support plan', description: 'Quarterly review due for current resident.', priority: 'MEDIUM', status: 'OPEN', dueAt: new Date('2026-07-19'), overdue: false },
-    { id: 'task-3', title: 'Upload gas safety certificate', description: 'Alder Terrace compliance folder.', priority: 'HIGH', status: 'OPEN', dueAt: new Date('2026-07-17'), overdue: true }
-  ]);
+  } catch (error) {
+    // A failed task query must never render invented work as if the team were on top of it.
+    throw crmDataUnavailable('tasks', error);
+  }
 }
 
 export async function getRotaShifts() {
@@ -201,7 +189,7 @@ export async function getRotaShifts() {
     const userIds = [...new Set(rows.flatMap((shift) => shift.assignments.map((assignment) => assignment.userId)))];
     const staff = userIds.length ? await db.user.findMany({ where: { id: { in: userIds }, organisationId: user.organisationId }, select: { id: true, name: true } }) : [];
     return rows.map((shift) => ({ ...shift, assignments: shift.assignments.map((assignment) => ({ ...assignment, user: staff.find((member) => member.id === assignment.userId) ?? { id: assignment.userId, name: 'Unknown staff member' } })) }));
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('rota', error); }
 }
 
 function safeJsonArray(value: string): string[] {
@@ -221,7 +209,7 @@ export async function getCrmAppointments() {
       include: { client: { select: clientRefSelect }, property: { select: { id: true, publicName: true } } },
       orderBy: { startsAt: 'asc' }
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('appointments', error); }
 }
 
 export async function getCrmMaintenanceTickets() {
@@ -233,7 +221,7 @@ export async function getCrmMaintenanceTickets() {
       include: { property: { select: { id: true, publicName: true } }, client: { select: clientRefSelect }, updates: { orderBy: { createdAt: 'desc' }, take: 3 } },
       orderBy: [{ status: 'asc' }, { targetFixAt: 'asc' }]
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('maintenance', error); }
 }
 
 export async function getCrmConcerns() {
@@ -245,7 +233,7 @@ export async function getCrmConcerns() {
       include: { client: { select: clientRefSelect }, property: { select: { id: true, publicName: true } }, actions: { orderBy: { createdAt: 'asc' } } },
       orderBy: { raisedAt: 'desc' }
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('concerns', error); }
 }
 
 export async function getCrmComplaints() {
@@ -257,7 +245,7 @@ export async function getCrmComplaints() {
       include: { client: { select: clientRefSelect } },
       orderBy: { receivedAt: 'desc' }
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('complaints', error); }
 }
 
 export async function getCrmComplianceRecords() {
@@ -271,7 +259,7 @@ export async function getCrmComplianceRecords() {
       include: { property: { select: { id: true, publicName: true, serviceType: true } } },
       orderBy: [{ nextDueAt: 'asc' }]
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('compliance', error); }
 }
 
 export async function getCrmPolicies() {
@@ -279,7 +267,7 @@ export async function getCrmPolicies() {
   if (!user) return [];
   try {
     return await db.policyResource.findMany({ where: { organisationId: user.organisationId }, orderBy: [{ status: 'asc' }, { reviewDueAt: 'asc' }] });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('policies', error); }
 }
 
 export async function getCrmStaffOptions() {
@@ -287,7 +275,7 @@ export async function getCrmStaffOptions() {
   if (!user) return [];
   try {
     return await db.user.findMany({ where: { organisationId: user.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('staff-options', error); }
 }
 
 export async function getCrmPropertyOptions() {
@@ -295,7 +283,53 @@ export async function getCrmPropertyOptions() {
   if (!user) return [];
   try {
     return await db.property.findMany({ where: { organisationId: user.organisationId }, select: { id: true, publicName: true, serviceType: true }, orderBy: { publicName: 'asc' } });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('property-options', error); }
+}
+
+/**
+ * The CRM property register.
+ *
+ * Organisation-scoped real rows only. This is deliberately separate from `getPublicProperties()`,
+ * which is marketing content and may fall back to illustrative homes. A CRM portfolio with no rows
+ * returns `[]` so the page can show a genuine empty state; a failed query throws so the page shows
+ * an error instead of a portfolio that does not exist.
+ */
+export async function getCrmProperties() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    return await db.property.findMany({
+      where: { organisationId: user.organisationId },
+      include: {
+        service: { select: { id: true, title: true } },
+        rooms: { select: { id: true, label: true, status: true, notes: true }, orderBy: { label: 'asc' } }
+      },
+      orderBy: [{ displayOrder: 'asc' }, { publicName: 'asc' }]
+    });
+  } catch (error) {
+    throw crmDataUnavailable('properties', error);
+  }
+}
+
+/**
+ * One property and its real rooms for the CRM detail page. Another organisation's property is a
+ * genuine 404 (returned as `null`); a database failure throws, so it can never render a fabricated
+ * room, occupancy state or staffing model.
+ */
+export async function getCrmProperty(propertyId: string) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  try {
+    return await db.property.findFirst({
+      where: { id: propertyId, organisationId: user.organisationId },
+      include: {
+        service: { select: { id: true, title: true } },
+        rooms: { select: { id: true, label: true, status: true, notes: true }, orderBy: { label: 'asc' } }
+      }
+    });
+  } catch (error) {
+    throw crmDataUnavailable('property', error);
+  }
 }
 
 /** Everything the operations dashboard, calendar and module pages need, in one round of queries.
@@ -377,7 +411,10 @@ export async function getCrmOperationsBoard(now = new Date()) {
       weekStart,
       weekEnd: addDays(weekStart, 6)
     };
-  } catch { return null; }
+  } catch (error) {
+    reportCrmDataError('operations-board', error);
+    return null;
+  }
 }
 
 export async function getCrmClientOptions() {
@@ -385,7 +422,7 @@ export async function getCrmClientOptions() {
   if (!user) return [];
   try {
     return await db.client.findMany({ where: { organisationId: user.organisationId }, select: { id: true, displayName: true, reference: true, restricted: true }, orderBy: { displayName: 'asc' } });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('client-options', error); }
 }
 
 export async function getCrmClientProfile(clientId: string) {
@@ -435,7 +472,10 @@ export async function getCrmClientProfile(clientId: string) {
       ? await db.user.findMany({ where: { id: { in: uploaderIds }, organisationId: user.organisationId }, select: { id: true, name: true } })
       : [];
     return { ...profile, documentUploaders: Object.fromEntries(uploaders.map((uploader) => [uploader.id, uploader.name])) as Record<string, string> };
-  } catch { return null; }
+  } catch (error) {
+    // A database failure must not masquerade as "this service user does not exist".
+    throw crmDataUnavailable('client-profile', error);
+  }
 }
 
 /** The placement register: every placement the organisation holds, with the property, room and
@@ -453,7 +493,7 @@ export async function getCrmPlacements() {
       },
       orderBy: { startDate: 'desc' }
     });
-  } catch { return []; }
+  } catch (error) { throw crmDataUnavailable('placements', error); }
 }
 
 /**
@@ -497,6 +537,8 @@ export async function getCrmPlacement(placementId: string) {
       inspectPlacementDependencies({ id: placement.id, clientId: placement.clientId })
     ]);
     return { ...placement, room, checklists, safeWellChecks, incidents, maintenanceTickets, documents, documentCount, appointments, tasks, dependencies };
-  } catch { return null; }
+  } catch (error) {
+    throw crmDataUnavailable('placement', error);
+  }
 }
 
